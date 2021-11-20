@@ -6,7 +6,10 @@ from matplotlib import pyplot as plt
 import seaborn as sns
 import scipy.stats
 from imblearn.over_sampling import SMOTE
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import confusion_matrix, accuracy_score, f1_score
 from sklearn.model_selection import train_test_split
+from sklearn import svm
 
 pd.set_option("display.max_columns", None)
 
@@ -105,6 +108,7 @@ def analyseData(database):
 
 
 def fixMissingValues(df):
+    print((df.isnull().sum() / len(df)) * 100)
     # els atributs continus s'omplen amb la mitjana
     df['MinTemp'] = df['MinTemp'].fillna(df['MinTemp'].mean())
     df['MaxTemp'] = df['MinTemp'].fillna(df['MaxTemp'].mean())
@@ -129,6 +133,8 @@ def fixMissingValues(df):
     df['WindDir9am'] = df['WindDir9am'].fillna(df['WindDir9am'].mode()[0])
     df['WindGustDir'] = df['WindGustDir'].fillna(df['WindGustDir'].mode()[0])
     df['WindDir3pm'] = df['WindDir3pm'].fillna(df['WindDir3pm'].mode()[0])
+    # print((df.isnull().sum() / len(df)) * 100)
+
     return df
 
 def cleanAndEnchanceData(df):
@@ -148,6 +154,13 @@ def cleanAndEnchanceData(df):
 
     return df
 
+
+def standarise(df):
+    scaler = preprocessing.MinMaxScaler()
+    scaler.fit(df)
+    df = pd.DataFrame(scaler.transform(df), index=df.index, columns=df.columns)
+    return df
+
 def balanceData(X, y):
     # https://machinelearningmastery.com/smote-oversampling-for-imbalanced-classification/
     # bàsicament pel fet que un 80% de les Y són 0 i un 20% són 1
@@ -155,25 +168,44 @@ def balanceData(X, y):
     X, y = oversample.fit_resample(X, y)
     return X, y
 
+def logisticRegression(X_test, X_train, y_test, y_train):
+    logireg = LogisticRegression(C=2.0, fit_intercept=True, penalty='l2', tol=0.001, max_iter=500)
+    logireg.fit(X_train, y_train.values.ravel())  # https://www.geeksforgeeks.org/python-pandas-series-ravel/
+    y_pred = logireg.predict(X_test)
+    print("Accuracy: ", accuracy_score(y_test, y_pred))
+    print("f1 score: ", f1_score(y_test, y_pred))
 
+def SVM(X_test, X_train, y_test, y_train):
+    svc = svm.SVC()
+    svc.fit(X_train, y_train.values.ravel())
+    y_pred = svc.predict(X_test)
+    print("Accuracy: ", accuracy_score(y_test, y_pred))
+    print("f1 score: ", f1_score(y_test, y_pred))
 
 
 def main():
     database = pd.read_csv('./weatherAUS.csv')
     # analyseData(database)
 
-    # percentatge de nulls abans i després
-    print((database.isnull().sum() / len(database)) * 100)
     database = fixMissingValues(database)
-    print((database.isnull().sum() / len(database)) * 100)
 
     database = cleanAndEnchanceData(database)
+
+    database = standarise(database)
 
     y = database[['RainTomorrow']]
     X = database.drop(columns=('RainTomorrow'))
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    X_train, y_test = balanceData(X_train, y_train)
+    X_train, y_train = balanceData(X_train, y_train)
+
+    logisticRegression(X_test, X_train, y_test, y_train)
+
+    # SVM(X_test, X_train, y_test, y_train)
+
+
+
+
 
 #names = ['Date','Location','MinTemp','MaxTemp','Rainfall','Evaporation','Sunshine','WindGustDir','WindGustSpeed','WindDir9am','WindDir3pm','WindSpeed9am','WindSpeed3pm','Humidity9am','Humidity3pm','Pressure9am','Pressure3pm','Cloud9am','Cloud3pm','Temp9am','Temp3pm','RainToday','RainTomorrow']
 # Press the green button in the gutter to run the script.
