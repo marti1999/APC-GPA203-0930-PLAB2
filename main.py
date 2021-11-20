@@ -1,9 +1,12 @@
+from sklearn import preprocessing
 from sklearn.datasets import make_regression
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 import seaborn as sns
 import scipy.stats
+from imblearn.over_sampling import SMOTE
+from sklearn.model_selection import train_test_split
 
 pd.set_option("display.max_columns", None)
 
@@ -120,13 +123,40 @@ def fixMissingValues(df):
     df['Temp9am'] = df['Temp9am'].fillna(df['Temp9am'].mean())
     df['Temp3pm'] = df['Temp3pm'].fillna(df['Temp3pm'].mean())
 
-    # aquests s'omplen agafant la moda de l'atribut
+    # aquests s'omplen agafant la moda de l'atribut pel fet que no pots treure una mitjana de dades discretes
     df['RainToday'] = df['RainToday'].fillna(df['RainToday'].mode()[0])
     df['RainTomorrow'] = df['RainTomorrow'].fillna(df['RainTomorrow'].mode()[0])
     df['WindDir9am'] = df['WindDir9am'].fillna(df['WindDir9am'].mode()[0])
     df['WindGustDir'] = df['WindGustDir'].fillna(df['WindGustDir'].mode()[0])
     df['WindDir3pm'] = df['WindDir3pm'].fillna(df['WindDir3pm'].mode()[0])
     return df
+
+def cleanAndEnchanceData(df):
+    # esborrant dia (dada identificadora, no vàlides pels models)
+    df = df.drop(columns=['Date'])
+
+    # posant un valor numèric a les dades categòriques per poder-les tractar aritmèticament
+    encoder = preprocessing.LabelEncoder()
+    df['Location'] = encoder.fit_transform(df['Location'])
+    df['WindDir9am'] = encoder.fit_transform(df['WindDir9am'])
+    df['WindDir3pm'] = encoder.fit_transform(df['WindDir3pm'])
+    df['WindGustDir'] = encoder.fit_transform(df['WindGustDir'])
+
+    # les de dalt dona igual el valor numèric que agafin, aquestes millor fer-les manualment
+    df['RainTomorrow'] = df['RainTomorrow'].map({'Yes': 1, 'No': 0})
+    df['RainToday'] = df['RainToday'].map({'Yes': 1, 'No': 0})
+
+    return df
+
+def balanceData(X, y):
+    # https://machinelearningmastery.com/smote-oversampling-for-imbalanced-classification/
+    # bàsicament pel fet que un 80% de les Y són 0 i un 20% són 1
+    oversample = SMOTE()
+    X, y = oversample.fit_resample(X, y)
+    return X, y
+
+
+
 
 def main():
     database = pd.read_csv('./weatherAUS.csv')
@@ -136,6 +166,14 @@ def main():
     print((database.isnull().sum() / len(database)) * 100)
     database = fixMissingValues(database)
     print((database.isnull().sum() / len(database)) * 100)
+
+    database = cleanAndEnchanceData(database)
+
+    y = database[['RainTomorrow']]
+    X = database.drop(columns=('RainTomorrow'))
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, y_test = balanceData(X_train, y_train)
 
 #names = ['Date','Location','MinTemp','MaxTemp','Rainfall','Evaporation','Sunshine','WindGustDir','WindGustSpeed','WindDir9am','WindDir3pm','WindSpeed9am','WindSpeed3pm','Humidity9am','Humidity3pm','Pressure9am','Pressure3pm','Cloud9am','Cloud3pm','Temp9am','Temp3pm','RainToday','RainTomorrow']
 # Press the green button in the gutter to run the script.
