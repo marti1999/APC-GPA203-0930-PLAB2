@@ -8,9 +8,13 @@ import scipy.stats
 from scipy import stats
 from imblearn.over_sampling import SMOTE
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import confusion_matrix, accuracy_score, f1_score, precision_recall_curve, average_precision_score
+from sklearn.metrics import confusion_matrix, accuracy_score, f1_score, precision_recall_curve, average_precision_score, \
+    roc_auc_score, roc_curve, auc
 from sklearn.model_selection import train_test_split
 from sklearn import svm
+from xgboost import XGBClassifier
+
+
 
 pd.set_option("display.max_columns", None)
 
@@ -175,9 +179,13 @@ def removeOutliers(df):
 def deleteHighlyCorrelatedAttributes(df):
     return df.drop(['Temp3pm','Temp9am','Humidity9am'],axis=1)
 
-def logisticRegression(X_test, X_train, y_test, y_train):
+def logisticRegression(X_test, X_train, y_test, y_train, proba=False):
     logireg = LogisticRegression(max_iter=500)
     logireg.fit(X_train, y_train.values.ravel())  # https://www.geeksforgeeks.org/python-pandas-series-ravel/
+    if proba:
+        y_pred = logireg.predict_proba(X_test)
+        return y_pred
+
     y_pred = logireg.predict(X_test)
     print("Accuracy: ", accuracy_score(y_test, y_pred))
     print("f1 score: ", f1_score(y_test, y_pred))
@@ -190,7 +198,63 @@ def SVM(X_test, X_train, y_test, y_train):
     print("Accuracy: ", accuracy_score(y_test, y_pred))
     print("f1 score: ", f1_score(y_test, y_pred))
 
+def XGBC(X_test, X_train, y_test, y_train, proba=False):
+    xgbc = XGBClassifier(objective='binary:logistic', use_label_encoder =False)
+    xgbc.fit(X_train,y_train.values.ravel())
+    if proba:
+        y_pred = xgbc.predict_proba(X_test)
+        return y_pred
 
+    y_pred = xgbc.predict(X_test)
+    print("Accuracy: ", accuracy_score(y_test, y_pred))
+    print("f1 score: ", f1_score(y_test, y_pred))
+
+
+def plotCurves(X_test, X_train, y_test, y_train, models):
+
+    for model in models:
+        ns_probs = [0 for _ in range(len(y_test))]
+
+        y_probs = None
+
+        if model == 'logistic':
+            y_probs = logisticRegression(X_test, X_train, y_test, y_train, proba=True)
+        elif model == 'svm':
+            continue
+        elif model == 'xgbc':
+            y_probs = XGBC(X_test, X_train, y_test, y_train, proba=True)
+
+        precision = {}
+        recall = {}
+        average_precision = {}
+        plt.figure()
+        for i in range(2):
+            precision[i], recall[i], _ = precision_recall_curve(y_test == i, y_probs[:, i])
+            average_precision[i] = average_precision_score(y_test == i, y_probs[:, i])
+
+            plt.plot(recall[i], precision[i],
+                     label='Precision-recall curve of class {0} (area = {1:0.2f})'
+                           ''.format(i, average_precision[i]))
+            plt.xlabel('Recall')
+            plt.ylabel('Precision')
+            plt.legend(loc="upper right")
+
+        # Compute ROC curve and ROC area for each class
+        fpr = {}
+        tpr = {}
+        roc_auc = {}
+        for i in range(2):
+            fpr[i], tpr[i], _ = roc_curve(y_test == i, y_probs[:, i])
+            roc_auc[i] = auc(fpr[i], tpr[i])
+
+        # Compute micro-average ROC curve and ROC area
+        # Plot ROC curve
+        plt.figure()
+        for i in range(2):
+            plt.plot(fpr[i], tpr[i], label='ROC curve of class {0} (area = {1:0.2f})' ''.format(i, roc_auc[i]))
+        plt.legend()
+
+        plt.show()
 
 def main():
     database = pd.read_csv('./weatherAUS.csv')
@@ -214,10 +278,13 @@ def main():
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     X_train, y_train = balanceData(X_train, y_train)
 
-    logisticRegression(X_test, X_train, y_test, y_train)
+    # logisticRegression(X_test, X_train, y_test, y_train)
+    #
+    # SVM(X_test, X_train, y_test, y_train)
+    #
+    # XGBC(X_test, X_train, y_test, y_train)
 
-    SVM(X_test, X_train, y_test, y_train)
-
+    plotCurves(X_test, X_train, y_test, y_train, ['logistic', 'svm', 'xgbc'])
 
 
 
