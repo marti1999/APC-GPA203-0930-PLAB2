@@ -5,9 +5,10 @@ import pandas as pd
 from matplotlib import pyplot as plt
 import seaborn as sns
 import scipy.stats
+from scipy import stats
 from imblearn.over_sampling import SMOTE
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import confusion_matrix, accuracy_score, f1_score
+from sklearn.metrics import confusion_matrix, accuracy_score, f1_score, precision_recall_curve, average_precision_score
 from sklearn.model_selection import train_test_split
 from sklearn import svm
 
@@ -108,7 +109,7 @@ def analyseData(database):
 
 
 def fixMissingValues(df):
-    print((df.isnull().sum() / len(df)) * 100)
+    # print((df.isnull().sum() / len(df)) * 100)
     # els atributs continus s'omplen amb la mitjana
     df['MinTemp'] = df['MinTemp'].fillna(df['MinTemp'].mean())
     df['MaxTemp'] = df['MinTemp'].fillna(df['MaxTemp'].mean())
@@ -168,19 +169,27 @@ def balanceData(X, y):
     X, y = oversample.fit_resample(X, y)
     return X, y
 
+def removeOutliers(df):
+    return df[(np.abs(stats.zscore(df)) < 3).all(axis=1)]
+
+def deleteHighlyCorrelatedAttributes(df):
+    return df.drop(['Temp3pm','Temp9am','Humidity9am'],axis=1)
+
 def logisticRegression(X_test, X_train, y_test, y_train):
-    logireg = LogisticRegression(C=2.0, fit_intercept=True, penalty='l2', tol=0.001, max_iter=500)
+    logireg = LogisticRegression(max_iter=500)
     logireg.fit(X_train, y_train.values.ravel())  # https://www.geeksforgeeks.org/python-pandas-series-ravel/
     y_pred = logireg.predict(X_test)
     print("Accuracy: ", accuracy_score(y_test, y_pred))
     print("f1 score: ", f1_score(y_test, y_pred))
 
 def SVM(X_test, X_train, y_test, y_train):
-    svc = svm.SVC()
+    # https://scikit-learn.org/stable/modules/svm.html#complexity
+    svc = svm.LinearSVC(random_state=0, tol=1e-5)
     svc.fit(X_train, y_train.values.ravel())
     y_pred = svc.predict(X_test)
     print("Accuracy: ", accuracy_score(y_test, y_pred))
     print("f1 score: ", f1_score(y_test, y_pred))
+
 
 
 def main():
@@ -191,17 +200,23 @@ def main():
 
     database = cleanAndEnchanceData(database)
 
-    database = standarise(database)
+    # database = removeOutliers(database)
+
+    # database = deleteHighlyCorrelatedAttributes(database)
+
+
 
     y = database[['RainTomorrow']]
     X = database.drop(columns=('RainTomorrow'))
+
+    X = standarise(X)
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     X_train, y_train = balanceData(X_train, y_train)
 
     logisticRegression(X_test, X_train, y_test, y_train)
 
-    # SVM(X_test, X_train, y_test, y_train)
+    SVM(X_test, X_train, y_test, y_train)
 
 
 
