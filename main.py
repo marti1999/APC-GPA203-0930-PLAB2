@@ -7,14 +7,15 @@ import seaborn as sns
 import scipy.stats
 from scipy import stats
 from imblearn.over_sampling import SMOTE
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix, accuracy_score, f1_score, precision_recall_curve, average_precision_score, \
     roc_auc_score, roc_curve, auc
 from sklearn.model_selection import train_test_split
 from sklearn import svm
+from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
-
-
+from sklearn.feature_selection import SelectKBest, chi2, f_classif
 
 pd.set_option("display.max_columns", None)
 
@@ -190,7 +191,7 @@ def logisticRegression(X_test, X_train, y_test, y_train, proba=False):
     print("Accuracy: ", accuracy_score(y_test, y_pred))
     print("f1 score: ", f1_score(y_test, y_pred))
 
-def SVM(X_test, X_train, y_test, y_train):
+def svcLinear(X_test, X_train, y_test, y_train):
     # https://scikit-learn.org/stable/modules/svm.html#complexity
     svc = svm.LinearSVC(random_state=0, tol=1e-5)
     svc.fit(X_train, y_train.values.ravel())
@@ -198,7 +199,20 @@ def SVM(X_test, X_train, y_test, y_train):
     print("Accuracy: ", accuracy_score(y_test, y_pred))
     print("f1 score: ", f1_score(y_test, y_pred))
 
-def XGBC(X_test, X_train, y_test, y_train, proba=False):
+
+def svc(X_test, X_train, y_test, y_train, proba=False, kernels=['rbf']):
+    for kernel in kernels:
+        svc = svm.SVC(C=10.0, kernel=kernel, gamma=0.9, probability=True, random_state=0)
+        svc.fit(X_train.head(10000), y_train.head(10000).values.ravel())
+        if proba:
+            y_pred = svc.predict_proba(X_test.head(10000))
+            return y_pred
+        y_pred = svc.predict(X_test.head(10000))
+        print("Accuracy: ", accuracy_score(y_test.head(10000), y_pred))
+        print("f1 score: ", f1_score(y_test.head(10000), y_pred))
+
+
+def xgbc(X_test, X_train, y_test, y_train, proba=False):
     xgbc = XGBClassifier(objective='binary:logistic', use_label_encoder =False)
     xgbc.fit(X_train,y_train.values.ravel())
     if proba:
@@ -206,6 +220,18 @@ def XGBC(X_test, X_train, y_test, y_train, proba=False):
         return y_pred
 
     y_pred = xgbc.predict(X_test)
+    print("Accuracy: ", accuracy_score(y_test, y_pred))
+    print("f1 score: ", f1_score(y_test, y_pred))
+
+
+def rfc(X_test, X_train, y_test, y_train, proba=False):
+    clf = RandomForestClassifier(random_state=0)
+    clf.fit(X_train,y_train.values.ravel())
+    if proba:
+        y_pred = clf.predict_proba(X_test)
+        return y_pred
+
+    y_pred = clf.predict(X_test)
     print("Accuracy: ", accuracy_score(y_test, y_pred))
     print("f1 score: ", f1_score(y_test, y_pred))
 
@@ -219,10 +245,12 @@ def plotCurves(X_test, X_train, y_test, y_train, models):
 
         if model == 'logistic':
             y_probs = logisticRegression(X_test, X_train, y_test, y_train, proba=True)
-        elif model == 'svm':
+        elif model == 'svcLinear':
             continue
         elif model == 'xgbc':
-            y_probs = XGBC(X_test, X_train, y_test, y_train, proba=True)
+            y_probs = xgbc(X_test, X_train, y_test, y_train, proba=True)
+        elif model == 'rfc':
+            y_probs = rfc(X_test, X_train, y_test, y_train, proba=True)
 
         precision = {}
         recall = {}
@@ -256,19 +284,216 @@ def plotCurves(X_test, X_train, y_test, y_train, models):
 
         plt.show()
 
+def comparePolyDegree(X, y, degrees=[3]):
+    X = X.head(100)
+    y = y.head(100)
+
+    # només té dos valors i no permet fer bé un plot
+    X = X.drop(columns=['RainToday'])
+
+    selector = SelectKBest(chi2, k=6)
+    selector.fit(X, y)
+    print(X.columns[selector.get_support(indices=True)])  # top 2 columns
+
+    # al ser un plot 2D hem de buscar quines són les 2 millores característiques a mostrar
+    selector = SelectKBest(chi2, k=2)
+    # selector = SelectKBest(f_classif, k=2)
+    selector.fit(X, y)
+    X_new = selector.transform(X)
+    print(X.columns[selector.get_support(indices=True)])  # top 2 columns
+    names = X.columns[selector.get_support(indices=True)].tolist()  # top 2 columns
+
+
+    models = []
+    for d in degrees:
+        poly_svc = svm.SVC(kernel='poly',degree=d).fit(X_new, y)
+        models.append(poly_svc)
+
+    # create a mesh to plot in
+    h = .02  # step size in the mesh
+    x_min, x_max = X_new[:, 0].min() - 0.1, X_new[:, 0].max() + 0.1
+    y_min, y_max = X_new[:, 1].min() - 0.1, X_new[:, 1].max() + 0.1
+    xx, yy = np.meshgrid(np.arange(x_min, x_max, h),
+                         np.arange(y_min, y_max, h))
+
+    # title for the plots
+    titles = 'SVC POLY'
+
+    y['RainTomorrow'] = y['RainTomorrow'].map({1: 'green', 0: 'black'})
+    colors = y['RainTomorrow'].to_list()
+
+    for i, clf in enumerate(models):
+        # Plot the decision boundary. For that, we will assign a color to each
+        # point in the mesh [x_min, x_max]x[y_min, y_max].
+        plt.subplot(2, 2, i + 1)
+        plt.subplots_adjust(wspace=0.4, hspace=0.4)
+
+        Z = clf.predict(np.c_[xx.ravel(), yy.ravel()])
+
+        # Put the result into a color plot
+        Z = Z.reshape(xx.shape)
+        plt.contourf(xx, yy, Z, cmap=plt.cm.coolwarm, alpha=0.8)
+
+        # Plot also the training points
+        plt.scatter(X_new[:, 0], X_new[:, 1], c=colors, cmap=plt.cm.coolwarm)
+        plt.xlabel(names[0])
+        plt.ylabel(names[1])
+        plt.xlim(xx.min(), xx.max())
+        plt.ylim(yy.min(), yy.max())
+        plt.xticks(())
+        plt.yticks(())
+        textDegree = ', d=' + str(degrees[i])
+        plt.title(titles + textDegree)
+
+    plt.show()
+
+def compareRbfGamma(X, y, Cs=[1], gammas=[1]):
+    X = X.head(100)
+    y = y.head(100)
+
+    # només té dos valors i no permet fer bé un plot
+    X = X.drop(columns=['RainToday'])
+
+    selector = SelectKBest(chi2, k=6)
+    selector.fit(X, y)
+    print(X.columns[selector.get_support(indices=True)])  # top 2 columns
+
+    # al ser un plot 2D hem de buscar quines són les 2 millores característiques a mostrar
+    selector = SelectKBest(chi2, k=2)
+    # selector = SelectKBest(f_classif, k=2)
+    selector.fit(X, y)
+    X_new = selector.transform(X)
+    print(X.columns[selector.get_support(indices=True)])  # top 2 columns
+    names = X.columns[selector.get_support(indices=True)].tolist()  # top 2 columns
+
+
+    models = []
+    for g, c in zip(gammas,Cs):
+        rbf_svc = svm.SVC(kernel='rbf', gamma=g, C=c).fit(X_new, y)
+        models.append(rbf_svc)
+
+    # create a mesh to plot in
+    h = .02  # step size in the mesh
+    x_min, x_max = X_new[:, 0].min() - 0.1, X_new[:, 0].max() + 0.1
+    y_min, y_max = X_new[:, 1].min() - 0.1, X_new[:, 1].max() + 0.1
+    xx, yy = np.meshgrid(np.arange(x_min, x_max, h),
+                         np.arange(y_min, y_max, h))
+
+    # title for the plots
+    titles = 'SVC RBF'
+
+    y['RainTomorrow'] = y['RainTomorrow'].map({1: 'green', 0: 'black'})
+    colors = y['RainTomorrow'].to_list()
+
+    for i, clf in enumerate(models):
+        # Plot the decision boundary. For that, we will assign a color to each
+        # point in the mesh [x_min, x_max]x[y_min, y_max].
+        plt.subplot(2, 2, i + 1)
+        plt.subplots_adjust(wspace=0.4, hspace=0.4)
+
+        Z = clf.predict(np.c_[xx.ravel(), yy.ravel()])
+
+        # Put the result into a color plot
+        Z = Z.reshape(xx.shape)
+        plt.contourf(xx, yy, Z, cmap=plt.cm.coolwarm, alpha=0.8)
+
+        # Plot also the training points
+        plt.scatter(X_new[:, 0], X_new[:, 1], c=colors, cmap=plt.cm.coolwarm)
+        plt.xlabel(names[0])
+        plt.ylabel(names[1])
+        plt.xlim(xx.min(), xx.max())
+        plt.ylim(yy.min(), yy.max())
+        plt.xticks(())
+        plt.yticks(())
+        textGamma = ', g=' + str(gammas[i])
+        textC = ', C=' + str(Cs[i])
+        plt.title(titles + textC + textGamma)
+
+    plt.show()
+
+def compareDifferentkernels(X, y, C=1, gamma=1):
+    X = X.head(100)
+    y = y.head(100)
+
+    # només té dos valors i no permet fer bé un plot
+    X = X.drop(columns=['RainToday'])
+
+    selector = SelectKBest(chi2, k=6)
+    selector.fit(X, y)
+    print(X.columns[selector.get_support(indices=True)])  # top 2 columns
+
+
+    # al ser un plot 2D hem de buscar quines són les 2 millores característiques a mostrar
+    selector = SelectKBest(chi2, k=2)
+    # selector = SelectKBest(f_classif, k=2)
+    selector.fit(X, y)
+    X_new = selector.transform(X)
+    print(X.columns[selector.get_support(indices=True)])  # top 2 columns
+    names = X.columns[selector.get_support(indices=True)].tolist()  # top 2 columns
+
+    svc = svm.SVC(kernel='linear', C=C).fit(X_new, y)
+    rbf_svc = svm.SVC(kernel='rbf', gamma=gamma, C=C).fit(X_new, y)
+    poly_svc = svm.SVC(kernel='poly', gamma=gamma, degree=3, C=C).fit(X_new, y)
+    lin_svc = svm.LinearSVC(C=C).fit(X_new, y)
+
+    # create a mesh to plot in
+    h = .02  # step size in the mesh
+    x_min, x_max = X_new[:, 0].min() - 0.1, X_new[:, 0].max() + 0.1
+    y_min, y_max = X_new[:, 1].min() - 0.1, X_new[:, 1].max() + 0.1
+    xx, yy = np.meshgrid(np.arange(x_min, x_max, h),
+                         np.arange(y_min, y_max, h))
+
+    # title for the plots
+    textC = ', C='+str(C)
+    textGamma= ', g='+str(gamma)
+    titles = ['SVC linear',
+              'LinearSVC',
+              'SVC RBF',
+              'SVC poly d3']
+
+
+    y['RainTomorrow'] = y['RainTomorrow'].map({1: 'green', 0: 'black'})
+    colors = y['RainTomorrow'].to_list()
+
+    for i, clf in enumerate((svc, lin_svc, rbf_svc, poly_svc)):
+        # Plot the decision boundary. For that, we will assign a color to each
+        # point in the mesh [x_min, x_max]x[y_min, y_max].
+        plt.subplot(2, 2, i + 1)
+        plt.subplots_adjust(wspace=0.4, hspace=0.4)
+
+        Z = clf.predict(np.c_[xx.ravel(), yy.ravel()])
+
+        # Put the result into a color plot
+        Z = Z.reshape(xx.shape)
+        plt.contourf(xx, yy, Z, cmap=plt.cm.coolwarm, alpha=0.8)
+
+        # Plot also the training points
+        plt.scatter(X_new[:, 0], X_new[:, 1], c=colors, cmap=plt.cm.coolwarm)
+        plt.xlabel(names[0])
+        plt.ylabel(names[1])
+        plt.xlim(xx.min(), xx.max())
+        plt.ylim(yy.min(), yy.max())
+        plt.xticks(())
+        plt.yticks(())
+        plt.title(titles[i]+textC+textGamma)
+
+    plt.show()
+
+
+
+    # y_pred = lin_svc.predict(X_new[:500,:])
+    # print("Accuracy: ", accuracy_score(y.head(500), y_pred))
+    # print("f1 score: ", f1_score(y.head(500), y_pred))
+
+
 def main():
     database = pd.read_csv('./weatherAUS.csv')
     # analyseData(database)
 
     database = fixMissingValues(database)
-
     database = cleanAndEnchanceData(database)
-
     # database = removeOutliers(database)
-
     # database = deleteHighlyCorrelatedAttributes(database)
-
-
 
     y = database[['RainTomorrow']]
     X = database.drop(columns=('RainTomorrow'))
@@ -279,12 +504,25 @@ def main():
     X_train, y_train = balanceData(X_train, y_train)
 
     # logisticRegression(X_test, X_train, y_test, y_train)
+    # svcLinear(X_test, X_train, y_test, y_train)
+    # xgbc(X_test, X_train, y_test, y_train)
+    # rfc(X_test, X_train, y_test, y_train)
+    # svc(X_test, X_train, y_test, y_train, kernels=['linear', 'rbf', 'sigmoid'])
     #
-    # SVM(X_test, X_train, y_test, y_train)
-    #
-    # XGBC(X_test, X_train, y_test, y_train)
+    # plotCurves(X_test, X_train, y_test, y_train, ['logistic', 'xgbc', 'rfc'])
 
-    plotCurves(X_test, X_train, y_test, y_train, ['logistic', 'svm', 'xgbc'])
+    # C=1
+    # gamma = 1
+    # for i in range(1,6):
+    #     compareDifferentkernels(X_train, y_train, gamma= gamma)
+    #     C= C*3
+    #     gamma = gamma*3
+
+    # Cs and gammas MUST BE same length
+    # compareRbfGamma(X_train, y_train,Cs=[0.1,1,10,1000], gammas=[0.1,1,10,100])
+
+    comparePolyDegree(X_train, y_train,degrees=[2,3,4,5])
+
 
 
 
