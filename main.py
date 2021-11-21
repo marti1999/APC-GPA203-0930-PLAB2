@@ -39,22 +39,22 @@ def analyseData(database):
 def ModifyDatabase(database):
     databaseChangeRain = database.copy()
     databaseChangeRain['RainTomorrow'] = [1 if i == 'Yes' else 0 for i in databaseChangeRain['RainTomorrow']]
-    sns.heatmap(databaseChangeRain.corr(), annot=True, linewidths=.5, cmap='rocket');
-    print("valors duplicats: ", database.duplicated().sum())
+    # sns.heatmap(databaseChangeRain.corr(), annot=True, linewidths=.5, cmap='rocket');
+    # print("valors duplicats: ", database.duplicated().sum())
     # Fer proves amb la columna resultat
     databaseChangeRain = database.copy()
-    print(database['RainTomorrow'].value_counts())
+    # print(database['RainTomorrow'].value_counts())
     databaseChangeRain['RainTomorrow'] = [1 if i == 'Yes' else 0 for i in databaseChangeRain['RainTomorrow']]
-    print(databaseChangeRain['RainTomorrow'].value_counts())
-    sns.heatmap(database.corr(), annot=True, linewidths=.5, cmap='rocket');
-    plt.show()
+    # print(databaseChangeRain['RainTomorrow'].value_counts())
+    # sns.heatmap(database.corr(), annot=True, linewidths=.5, cmap='rocket');
+    # plt.show()
     cols_to_drop = ['Date']
     databaseChangeRain.drop(columns=cols_to_drop, inplace=True)
     x = databaseChangeRain.drop(['RainTomorrow'], axis=1)
     y = databaseChangeRain['RainTomorrow']
     plotVariable=['Rainfall', 'Evaporation', 'WindSpeed9am','WindSpeed3pm','MinTemp']
     # creacio d'un plot per veure la distribucio de les dades
-    plotVariablesBox(databaseChangeRain, plotVariable)
+    # plotVariablesBox(databaseChangeRain, plotVariable)
     return x, y
 
 
@@ -103,68 +103,38 @@ def fixMissingValuesMode(df):
     # hacemos la moda en los Nan a toda la base de datos
     # toda la base de datos ponemos moda
     variables = list(df.select_dtypes(include=['float64', 'object']).columns)
-    print("Valores nulos ?(con moda):")
+    # print("Valores nulos ?(con moda):")
     xModedf = df.copy()
     for i in variables:
         xModedf[i].fillna(xModedf[i].mode()[0], inplace=True)
-    print(i, ": ", xModedf[i].isna().sum())
+    # print(i, ": ", xModedf[i].isna().sum())
     return xModedf
 
 def fixMissingValuesMedian(df):
     variables = list(df.select_dtypes(include=['float64', 'object']).columns)
     xMediandf = df.copy()
     # toda la base de datos ponemos mediana menos a los de tipo objeto a esos no se les puede calcular la mediana
-    print("Valores nulos ?(con mediana):")
+    # print("Valores nulos ?(con mediana):")
     for i in variables:
         if (np.dtype(xMediandf[i]) == 'object'):
             xMediandf[i].fillna(xMediandf[i].mode()[0], inplace=True)
         else:
             xMediandf[i].fillna(xMediandf[i].median(), inplace=True)
-    print(i, ": ", xMediandf[i].isna().sum())
+    # print(i, ": ", xMediandf[i].isna().sum())
     return xMediandf
 
 def fixMissingValuesMean(df):
     variables = list(df.select_dtypes(include=['float64', 'object']).columns)
     xMeandf = df.copy()
-    print("Valores nulos ?(con media):")
+    # print("Valores nulos ?(con media):")
     # toda la base de datos ponemos media menos a los de tipo objeto a esos no se les puede calcular la mediana
     for i in variables:
         if (np.dtype(xMeandf[i]) == 'object'):
             xMeandf[i].fillna(xMeandf[i].mode()[0], inplace=True)
         else:
             xMeandf[i].fillna(xMeandf[i].mean(), inplace=True)
-    print(i, ": ", xMeandf[i].isna().sum())
+    # print(i, ": ", xMeandf[i].isna().sum())
     return xMeandf
-
-def fixMissingValues(df):
-    # print((df.isnull().sum() / len(df)) * 100)
-    # els atributs continus s'omplen amb la mitjana
-    df['MinTemp'] = df['MinTemp'].fillna(df['MinTemp'].mean())
-    df['MaxTemp'] = df['MinTemp'].fillna(df['MaxTemp'].mean())
-    df['Rainfall'] = df['Rainfall'].fillna(df['Rainfall'].mean())
-    df['Evaporation'] = df['Evaporation'].fillna(df['Evaporation'].mean())
-    df['Sunshine'] = df['Sunshine'].fillna(df['Sunshine'].mean())
-    df['WindGustSpeed'] = df['WindGustSpeed'].fillna(df['WindGustSpeed'].mean())
-    df['WindSpeed9am'] = df['WindSpeed9am'].fillna(df['WindSpeed9am'].mean())
-    df['WindSpeed3pm'] = df['WindSpeed3pm'].fillna(df['WindSpeed3pm'].mean())
-    df['Humidity9am'] = df['Humidity9am'].fillna(df['Humidity9am'].mean())
-    df['Humidity3pm'] = df['Humidity3pm'].fillna(df['Humidity3pm'].mean())
-    df['Pressure9am'] = df['Pressure9am'].fillna(df['Pressure9am'].mean())
-    df['Pressure3pm'] = df['Pressure3pm'].fillna(df['Pressure3pm'].mean())
-    df['Cloud9am'] = df['Cloud9am'].fillna(df['Cloud9am'].mean())
-    df['Cloud3pm'] = df['Cloud3pm'].fillna(df['Cloud3pm'].mean())
-    df['Temp9am'] = df['Temp9am'].fillna(df['Temp9am'].mean())
-    df['Temp3pm'] = df['Temp3pm'].fillna(df['Temp3pm'].mean())
-
-    # aquests s'omplen agafant la moda de l'atribut pel fet que no pots treure una mitjana de dades discretes
-    df['RainToday'] = df['RainToday'].fillna(df['RainToday'].mode()[0])
-    df['RainTomorrow'] = df['RainTomorrow'].fillna(df['RainTomorrow'].mode()[0])
-    df['WindDir9am'] = df['WindDir9am'].fillna(df['WindDir9am'].mode()[0])
-    df['WindGustDir'] = df['WindGustDir'].fillna(df['WindGustDir'].mode()[0])
-    df['WindDir3pm'] = df['WindDir3pm'].fillna(df['WindDir3pm'].mode()[0])
-    # print((df.isnull().sum() / len(df)) * 100)
-
-    return df
 
 def cleanAndEnchanceData(df):
     # esborrant dia (dada identificadora, no vàlides pels models)
@@ -541,24 +511,28 @@ def compareDifferentkernels(X, y, C=1, gamma=1):
 
 
 def main():
-    database = pd.read_csv('./weatherAUS.csv')
     # analyseData(database)
 
     database = pd.read_csv('./weatherAUS.csv')
-    analyseData(database)
+    # analyseData(database)
 
-    X, y = ModifyDatabase(database)
-    X = fixMissingValuesMean(X)
-    X = EnchanceData(X)
+    # X, y = ModifyDatabase(database)
+    # X = fixMissingValuesMean(X)
+    #
+    # X = EnchanceData(X)
+    # X = pd.DataFrame(X.toarray())
+    # X.columns = ['Location','MinTemp','MaxTemp','Rainfall','Evaporation','Sunshine','WindGustDir','WindGustSpeed','WindDir9am','WindDir3pm','WindSpeed9am','WindSpeed3pm','Humidity9am','Humidity3pm','Pressure9am','Pressure3pm','Cloud9am','Cloud3pm','Temp9am','Temp3pm','RainToday']
 
-    # X = removeOutliers(X)
-    X = pd.DataFrame(X.toarray())
+    database = fixMissingValues(database)
+    database = cleanAndEnchanceData(database)
+    y = database[['RainTomorrow']]
+    X = database.drop(columns=('RainTomorrow'))
+
+
     liersSkewindex = NormalitzeData(X)
     X = transformutilsColumns(X, liersSkewindex)
-
     X = standarise(X)
 
-    print(X.shape)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     X_train, y_train = balanceData(X_train, y_train)
 
@@ -566,28 +540,19 @@ def main():
     svcLinear(X_test, X_train, y_test, y_train)
     xgbc(X_test, X_train, y_test, y_train)
     rfc(X_test, X_train, y_test, y_train)
-    # svc(X_test, X_train, y_test, y_train, kernels=['linear', 'rbf', 'sigmoid'])
+    svc(X_test, X_train, y_test, y_train, kernels=['linear', 'rbf', 'sigmoid'])
 
     plotCurves(X_test, X_train, y_test, y_train, ['logistic', 'xgbc', 'rfc'])
 
-    # logisticRegression(X_test, X_train, y_test, y_train)
-    # svcLinear(X_test, X_train, y_test, y_train)
-    # xgbc(X_test, X_train, y_test, y_train)
-    # rfc(X_test, X_train, y_test, y_train)
-    # svc(X_test, X_train, y_test, y_train, kernels=['linear', 'rbf', 'sigmoid'])
-    #
-    # plotCurves(X_test, X_train, y_test, y_train, ['logistic', 'xgbc', 'rfc'])
-
-    # C=1
-    # gamma = 1
-    # for i in range(1,6):
-    #     compareDifferentkernels(X_train, y_train, gamma= gamma)
-    #     C= C*3
-    #     gamma = gamma*3
+    C=1
+    gamma = 1
+    for i in range(1,6):
+        compareDifferentkernels(X_train, y_train, gamma= gamma)
+        C= C*3
+        gamma = gamma*3
 
     # Cs and gammas MUST BE same length
-    # compareRbfGamma(X_train, y_train,Cs=[0.1,1,10,1000], gammas=[0.1,1,10,100])
-
+    compareRbfGamma(X_train, y_train,Cs=[0.1,1,10,1000], gammas=[0.1,1,10,100])
     comparePolyDegree(X_train, y_train,degrees=[2,3,4,5])
 
 
