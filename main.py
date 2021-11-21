@@ -18,8 +18,7 @@ from sklearn.model_selection import train_test_split
 from sklearn import svm
 from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
-
-
+from sklearn.feature_selection import SelectKBest, chi2, f_classif
 
 pd.set_option("display.max_columns", None)
 
@@ -41,14 +40,18 @@ def ModifyDatabase(database):
     databaseChangeRain = database.copy()
     databaseChangeRain['RainTomorrow'] = [1 if i == 'Yes' else 0 for i in databaseChangeRain['RainTomorrow']]
     sns.heatmap(databaseChangeRain.corr(), annot=True, linewidths=.5, cmap='rocket');
+    print("valors duplicats: ", database.duplicated().sum())
+    # Fer proves amb la columna resultat
+    databaseChangeRain = database.copy()
+    print(database['RainTomorrow'].value_counts())
+    databaseChangeRain['RainTomorrow'] = [1 if i == 'Yes' else 0 for i in databaseChangeRain['RainTomorrow']]
+    print(databaseChangeRain['RainTomorrow'].value_counts())
+    sns.heatmap(database.corr(), annot=True, linewidths=.5, cmap='rocket');
     plt.show()
-
     cols_to_drop = ['Date']
     databaseChangeRain.drop(columns=cols_to_drop, inplace=True)
-
     x = databaseChangeRain.drop(['RainTomorrow'], axis=1)
     y = databaseChangeRain['RainTomorrow']
-
     plotVariable=['Rainfall', 'Evaporation', 'WindSpeed9am','WindSpeed3pm','MinTemp']
     # creacio d'un plot per veure la distribucio de les dades
     plotVariablesBox(databaseChangeRain, plotVariable)
@@ -110,6 +113,8 @@ def fixMissingValuesMode(df):
 def fixMissingValuesMedian(df):
     variables = list(df.select_dtypes(include=['float64', 'object']).columns)
     xMediandf = df.copy()
+    # toda la base de datos ponemos mediana menos a los de tipo objeto a esos no se les puede calcular la mediana
+    print("Valores nulos ?(con mediana):")
     for i in variables:
         if (np.dtype(xMediandf[i]) == 'object'):
             xMediandf[i].fillna(xMediandf[i].mode()[0], inplace=True)
@@ -121,6 +126,7 @@ def fixMissingValuesMedian(df):
 def fixMissingValuesMean(df):
     variables = list(df.select_dtypes(include=['float64', 'object']).columns)
     xMeandf = df.copy()
+    print("Valores nulos ?(con media):")
     # toda la base de datos ponemos media menos a los de tipo objeto a esos no se les puede calcular la mediana
     for i in variables:
         if (np.dtype(xMeandf[i]) == 'object'):
@@ -130,6 +136,35 @@ def fixMissingValuesMean(df):
     print(i, ": ", xMeandf[i].isna().sum())
     return xMeandf
 
+def fixMissingValues(df):
+    # print((df.isnull().sum() / len(df)) * 100)
+    # els atributs continus s'omplen amb la mitjana
+    df['MinTemp'] = df['MinTemp'].fillna(df['MinTemp'].mean())
+    df['MaxTemp'] = df['MinTemp'].fillna(df['MaxTemp'].mean())
+    df['Rainfall'] = df['Rainfall'].fillna(df['Rainfall'].mean())
+    df['Evaporation'] = df['Evaporation'].fillna(df['Evaporation'].mean())
+    df['Sunshine'] = df['Sunshine'].fillna(df['Sunshine'].mean())
+    df['WindGustSpeed'] = df['WindGustSpeed'].fillna(df['WindGustSpeed'].mean())
+    df['WindSpeed9am'] = df['WindSpeed9am'].fillna(df['WindSpeed9am'].mean())
+    df['WindSpeed3pm'] = df['WindSpeed3pm'].fillna(df['WindSpeed3pm'].mean())
+    df['Humidity9am'] = df['Humidity9am'].fillna(df['Humidity9am'].mean())
+    df['Humidity3pm'] = df['Humidity3pm'].fillna(df['Humidity3pm'].mean())
+    df['Pressure9am'] = df['Pressure9am'].fillna(df['Pressure9am'].mean())
+    df['Pressure3pm'] = df['Pressure3pm'].fillna(df['Pressure3pm'].mean())
+    df['Cloud9am'] = df['Cloud9am'].fillna(df['Cloud9am'].mean())
+    df['Cloud3pm'] = df['Cloud3pm'].fillna(df['Cloud3pm'].mean())
+    df['Temp9am'] = df['Temp9am'].fillna(df['Temp9am'].mean())
+    df['Temp3pm'] = df['Temp3pm'].fillna(df['Temp3pm'].mean())
+
+    # aquests s'omplen agafant la moda de l'atribut pel fet que no pots treure una mitjana de dades discretes
+    df['RainToday'] = df['RainToday'].fillna(df['RainToday'].mode()[0])
+    df['RainTomorrow'] = df['RainTomorrow'].fillna(df['RainTomorrow'].mode()[0])
+    df['WindDir9am'] = df['WindDir9am'].fillna(df['WindDir9am'].mode()[0])
+    df['WindGustDir'] = df['WindGustDir'].fillna(df['WindGustDir'].mode()[0])
+    df['WindDir3pm'] = df['WindDir3pm'].fillna(df['WindDir3pm'].mode()[0])
+    # print((df.isnull().sum() / len(df)) * 100)
+
+    return df
 
 def cleanAndEnchanceData(df):
     # esborrant dia (dada identificadora, no vàlides pels models)
@@ -159,12 +194,19 @@ def EnchanceData(x):
     return transformer.fit_transform(x)
 
 
-def standarise(df, with_mean=False):
+def standarise2(df, with_mean=False):
     # scaler = preprocessing.MinMaxScaler()
     scaler = StandardScaler()
     scaler.fit(df)
     df = scaler.transform(df)
+    return df
     # df = pd.DataFrame(scaler.transform(df), index=df.index, columns=df.columns)
+
+
+def standarise(df):
+    scaler = preprocessing.MinMaxScaler()
+    scaler.fit(df)
+    df = pd.DataFrame(scaler.transform(df), index=df.index, columns=df.columns)
     return df
 
 def balanceData(X, y):
@@ -290,12 +332,218 @@ def plotCurves(X_test, X_train, y_test, y_train, models):
         plt.legend()
 
         plt.show()
+
 def transformutilsColumns(X,liersSkew):
     pt = PowerTransformer(standardize=False)
     X[liersSkew] = pt.fit_transform(X[liersSkew])
     return X
 
+def comparePolyDegree(X, y, degrees=[3]):
+    X = X.head(100)
+    y = y.head(100)
+
+    # només té dos valors i no permet fer bé un plot
+    X = X.drop(columns=['RainToday'])
+
+    selector = SelectKBest(chi2, k=6)
+    selector.fit(X, y)
+    print(X.columns[selector.get_support(indices=True)])  # top 2 columns
+
+    # al ser un plot 2D hem de buscar quines són les 2 millores característiques a mostrar
+    selector = SelectKBest(chi2, k=2)
+    # selector = SelectKBest(f_classif, k=2)
+    selector.fit(X, y)
+    X_new = selector.transform(X)
+    print(X.columns[selector.get_support(indices=True)])  # top 2 columns
+    names = X.columns[selector.get_support(indices=True)].tolist()  # top 2 columns
+
+
+    models = []
+    for d in degrees:
+        poly_svc = svm.SVC(kernel='poly',degree=d).fit(X_new, y)
+        models.append(poly_svc)
+
+    # create a mesh to plot in
+    h = .02  # step size in the mesh
+    x_min, x_max = X_new[:, 0].min() - 0.1, X_new[:, 0].max() + 0.1
+    y_min, y_max = X_new[:, 1].min() - 0.1, X_new[:, 1].max() + 0.1
+    xx, yy = np.meshgrid(np.arange(x_min, x_max, h),
+                         np.arange(y_min, y_max, h))
+
+    # title for the plots
+    titles = 'SVC POLY'
+
+    y['RainTomorrow'] = y['RainTomorrow'].map({1: 'green', 0: 'black'})
+    colors = y['RainTomorrow'].to_list()
+
+    for i, clf in enumerate(models):
+        # Plot the decision boundary. For that, we will assign a color to each
+        # point in the mesh [x_min, x_max]x[y_min, y_max].
+        plt.subplot(2, 2, i + 1)
+        plt.subplots_adjust(wspace=0.4, hspace=0.4)
+
+        Z = clf.predict(np.c_[xx.ravel(), yy.ravel()])
+
+        # Put the result into a color plot
+        Z = Z.reshape(xx.shape)
+        plt.contourf(xx, yy, Z, cmap=plt.cm.coolwarm, alpha=0.8)
+
+        # Plot also the training points
+        plt.scatter(X_new[:, 0], X_new[:, 1], c=colors, cmap=plt.cm.coolwarm)
+        plt.xlabel(names[0])
+        plt.ylabel(names[1])
+        plt.xlim(xx.min(), xx.max())
+        plt.ylim(yy.min(), yy.max())
+        plt.xticks(())
+        plt.yticks(())
+        textDegree = ', d=' + str(degrees[i])
+        plt.title(titles + textDegree)
+
+    plt.show()
+
+def compareRbfGamma(X, y, Cs=[1], gammas=[1]):
+    X = X.head(100)
+    y = y.head(100)
+
+    # només té dos valors i no permet fer bé un plot
+    X = X.drop(columns=['RainToday'])
+
+    selector = SelectKBest(chi2, k=6)
+    selector.fit(X, y)
+    print(X.columns[selector.get_support(indices=True)])  # top 2 columns
+
+    # al ser un plot 2D hem de buscar quines són les 2 millores característiques a mostrar
+    selector = SelectKBest(chi2, k=2)
+    # selector = SelectKBest(f_classif, k=2)
+    selector.fit(X, y)
+    X_new = selector.transform(X)
+    print(X.columns[selector.get_support(indices=True)])  # top 2 columns
+    names = X.columns[selector.get_support(indices=True)].tolist()  # top 2 columns
+
+
+    models = []
+    for g, c in zip(gammas,Cs):
+        rbf_svc = svm.SVC(kernel='rbf', gamma=g, C=c).fit(X_new, y)
+        models.append(rbf_svc)
+
+    # create a mesh to plot in
+    h = .02  # step size in the mesh
+    x_min, x_max = X_new[:, 0].min() - 0.1, X_new[:, 0].max() + 0.1
+    y_min, y_max = X_new[:, 1].min() - 0.1, X_new[:, 1].max() + 0.1
+    xx, yy = np.meshgrid(np.arange(x_min, x_max, h),
+                         np.arange(y_min, y_max, h))
+
+    # title for the plots
+    titles = 'SVC RBF'
+
+    y['RainTomorrow'] = y['RainTomorrow'].map({1: 'green', 0: 'black'})
+    colors = y['RainTomorrow'].to_list()
+
+    for i, clf in enumerate(models):
+        # Plot the decision boundary. For that, we will assign a color to each
+        # point in the mesh [x_min, x_max]x[y_min, y_max].
+        plt.subplot(2, 2, i + 1)
+        plt.subplots_adjust(wspace=0.4, hspace=0.4)
+
+        Z = clf.predict(np.c_[xx.ravel(), yy.ravel()])
+
+        # Put the result into a color plot
+        Z = Z.reshape(xx.shape)
+        plt.contourf(xx, yy, Z, cmap=plt.cm.coolwarm, alpha=0.8)
+
+        # Plot also the training points
+        plt.scatter(X_new[:, 0], X_new[:, 1], c=colors, cmap=plt.cm.coolwarm)
+        plt.xlabel(names[0])
+        plt.ylabel(names[1])
+        plt.xlim(xx.min(), xx.max())
+        plt.ylim(yy.min(), yy.max())
+        plt.xticks(())
+        plt.yticks(())
+        textGamma = ', g=' + str(gammas[i])
+        textC = ', C=' + str(Cs[i])
+        plt.title(titles + textC + textGamma)
+
+    plt.show()
+
+def compareDifferentkernels(X, y, C=1, gamma=1):
+    X = X.head(100)
+    y = y.head(100)
+
+    # només té dos valors i no permet fer bé un plot
+    X = X.drop(columns=['RainToday'])
+
+    selector = SelectKBest(chi2, k=6)
+    selector.fit(X, y)
+    print(X.columns[selector.get_support(indices=True)])  # top 2 columns
+
+
+    # al ser un plot 2D hem de buscar quines són les 2 millores característiques a mostrar
+    selector = SelectKBest(chi2, k=2)
+    # selector = SelectKBest(f_classif, k=2)
+    selector.fit(X, y)
+    X_new = selector.transform(X)
+    print(X.columns[selector.get_support(indices=True)])  # top 2 columns
+    names = X.columns[selector.get_support(indices=True)].tolist()  # top 2 columns
+
+    svc = svm.SVC(kernel='linear', C=C).fit(X_new, y)
+    rbf_svc = svm.SVC(kernel='rbf', gamma=gamma, C=C).fit(X_new, y)
+    poly_svc = svm.SVC(kernel='poly', gamma=gamma, degree=3, C=C).fit(X_new, y)
+    lin_svc = svm.LinearSVC(C=C).fit(X_new, y)
+
+    # create a mesh to plot in
+    h = .02  # step size in the mesh
+    x_min, x_max = X_new[:, 0].min() - 0.1, X_new[:, 0].max() + 0.1
+    y_min, y_max = X_new[:, 1].min() - 0.1, X_new[:, 1].max() + 0.1
+    xx, yy = np.meshgrid(np.arange(x_min, x_max, h),
+                         np.arange(y_min, y_max, h))
+
+    # title for the plots
+    textC = ', C='+str(C)
+    textGamma= ', g='+str(gamma)
+    titles = ['SVC linear',
+              'LinearSVC',
+              'SVC RBF',
+              'SVC poly d3']
+
+
+    y['RainTomorrow'] = y['RainTomorrow'].map({1: 'green', 0: 'black'})
+    colors = y['RainTomorrow'].to_list()
+
+    for i, clf in enumerate((svc, lin_svc, rbf_svc, poly_svc)):
+        # Plot the decision boundary. For that, we will assign a color to each
+        # point in the mesh [x_min, x_max]x[y_min, y_max].
+        plt.subplot(2, 2, i + 1)
+        plt.subplots_adjust(wspace=0.4, hspace=0.4)
+
+        Z = clf.predict(np.c_[xx.ravel(), yy.ravel()])
+
+        # Put the result into a color plot
+        Z = Z.reshape(xx.shape)
+        plt.contourf(xx, yy, Z, cmap=plt.cm.coolwarm, alpha=0.8)
+
+        # Plot also the training points
+        plt.scatter(X_new[:, 0], X_new[:, 1], c=colors, cmap=plt.cm.coolwarm)
+        plt.xlabel(names[0])
+        plt.ylabel(names[1])
+        plt.xlim(xx.min(), xx.max())
+        plt.ylim(yy.min(), yy.max())
+        plt.xticks(())
+        plt.yticks(())
+        plt.title(titles[i]+textC+textGamma)
+
+    plt.show()
+
+
+
+    # y_pred = lin_svc.predict(X_new[:500,:])
+    # print("Accuracy: ", accuracy_score(y.head(500), y_pred))
+    # print("f1 score: ", f1_score(y.head(500), y_pred))
+
+
 def main():
+    database = pd.read_csv('./weatherAUS.csv')
+    # analyseData(database)
+
     database = pd.read_csv('./weatherAUS.csv')
     analyseData(database)
 
@@ -303,10 +551,10 @@ def main():
     X = fixMissingValuesMean(X)
     X = EnchanceData(X)
 
-    #X = removeOutliers(X)
+    # X = removeOutliers(X)
     X = pd.DataFrame(X.toarray())
     liersSkewindex = NormalitzeData(X)
-    X=transformutilsColumns(X,liersSkewindex)
+    X = transformutilsColumns(X, liersSkewindex)
 
     X = standarise(X)
 
@@ -318,11 +566,29 @@ def main():
     svcLinear(X_test, X_train, y_test, y_train)
     xgbc(X_test, X_train, y_test, y_train)
     rfc(X_test, X_train, y_test, y_train)
-    #svc(X_test, X_train, y_test, y_train, kernels=['linear', 'rbf', 'sigmoid'])
+    # svc(X_test, X_train, y_test, y_train, kernels=['linear', 'rbf', 'sigmoid'])
 
     plotCurves(X_test, X_train, y_test, y_train, ['logistic', 'xgbc', 'rfc'])
 
+    # logisticRegression(X_test, X_train, y_test, y_train)
+    # svcLinear(X_test, X_train, y_test, y_train)
+    # xgbc(X_test, X_train, y_test, y_train)
+    # rfc(X_test, X_train, y_test, y_train)
+    # svc(X_test, X_train, y_test, y_train, kernels=['linear', 'rbf', 'sigmoid'])
+    #
+    # plotCurves(X_test, X_train, y_test, y_train, ['logistic', 'xgbc', 'rfc'])
 
+    # C=1
+    # gamma = 1
+    # for i in range(1,6):
+    #     compareDifferentkernels(X_train, y_train, gamma= gamma)
+    #     C= C*3
+    #     gamma = gamma*3
+
+    # Cs and gammas MUST BE same length
+    # compareRbfGamma(X_train, y_train,Cs=[0.1,1,10,1000], gammas=[0.1,1,10,100])
+
+    comparePolyDegree(X_train, y_train,degrees=[2,3,4,5])
 
 
 
