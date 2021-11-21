@@ -13,7 +13,7 @@ from imblearn.over_sampling import SMOTE
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix, accuracy_score, f1_score, precision_recall_curve, average_precision_score, \
-    roc_auc_score, roc_curve, auc
+    roc_auc_score, roc_curve, auc, recall_score
 from sklearn.model_selection import train_test_split
 from sklearn import svm
 from sklearn.preprocessing import StandardScaler
@@ -199,6 +199,11 @@ def NormalitzeData(df):
 def deleteHighlyCorrelatedAttributes(df):
     return df.drop(['Temp3pm','Temp9am','Humidity9am'],axis=1)
 
+
+def precission_score(y_test, y_pred):
+    pass
+
+
 def logisticRegression(X_test, X_train, y_test, y_train, proba=False):
     logireg = LogisticRegression(max_iter=500)
     logireg.fit(X_train, y_train.values.ravel())  # https://www.geeksforgeeks.org/python-pandas-series-ravel/
@@ -207,29 +212,34 @@ def logisticRegression(X_test, X_train, y_test, y_train, proba=False):
         return y_pred
 
     y_pred = logireg.predict(X_test)
+    print("\nLogistic")
     print("Accuracy: ", accuracy_score(y_test, y_pred))
+    print("Recall: ", recall_score(y_test, y_pred))
     print("f1 score: ", f1_score(y_test, y_pred))
 
 def svcLinear(X_test, X_train, y_test, y_train):
     # https://scikit-learn.org/stable/modules/svm.html#complexity
-    svc = svm.LinearSVC(random_state=0, tol=1e-5)
+    svc = svm.LinearSVC(random_state=0, tol=1e-4)
     svc.fit(X_train, y_train.values.ravel())
     y_pred = svc.predict(X_test)
+    print("\nSVC Linear")
     print("Accuracy: ", accuracy_score(y_test, y_pred))
+    print("Recall: ", recall_score(y_test, y_pred))
     print("f1 score: ", f1_score(y_test, y_pred))
 
 
 def svc(X_test, X_train, y_test, y_train, proba=False, kernels=['rbf']):
     for kernel in kernels:
-        svc = svm.SVC(C=10.0, kernel=kernel, gamma=0.9, probability=True, random_state=0)
-        svc.fit(X_train.head(10000), y_train.head(10000).values.ravel())
+        svc = svm.SVC(C=1, kernel=kernel, probability=False, random_state=0)
+        svc.fit(X_train.head(1000), y_train.head(1000).values.ravel())
         if proba:
-            y_pred = svc.predict_proba(X_test.head(10000))
+            y_pred = svc.predict_proba(X_test.head(100))
             return y_pred
-        y_pred = svc.predict(X_test.head(10000))
-        print("Accuracy: ", accuracy_score(y_test.head(10000), y_pred))
-        print("f1 score: ", f1_score(y_test.head(10000), y_pred))
-
+        y_pred = svc.predict(X_test.head(100))
+        print("\nSVC")
+        print("Accuracy: ", accuracy_score(y_test.head(100), y_pred))
+        print("Recall: ", recall_score(y_test.head(100), y_pred))
+        print("f1 score: ", f1_score(y_test.head(100), y_pred))
 
 def xgbc(X_test, X_train, y_test, y_train, proba=False):
     xgbc = XGBClassifier(objective='binary:logistic', use_label_encoder =False)
@@ -239,7 +249,9 @@ def xgbc(X_test, X_train, y_test, y_train, proba=False):
         return y_pred
 
     y_pred = xgbc.predict(X_test)
+    print("\nXGBC")
     print("Accuracy: ", accuracy_score(y_test, y_pred))
+    print("Recall: ", recall_score(y_test, y_pred))
     print("f1 score: ", f1_score(y_test, y_pred))
 
 
@@ -251,7 +263,9 @@ def rfc(X_test, X_train, y_test, y_train, proba=False):
         return y_pred
 
     y_pred = clf.predict(X_test)
+    print("\nRandom Forest")
     print("Accuracy: ", accuracy_score(y_test, y_pred))
+    print("Recall: ", recall_score(y_test, y_pred))
     print("f1 score: ", f1_score(y_test, y_pred))
 
 
@@ -264,8 +278,8 @@ def plotCurves(X_test, X_train, y_test, y_train, models):
 
         if model == 'logistic':
             y_probs = logisticRegression(X_test, X_train, y_test, y_train, proba=True)
-        elif model == 'svcLinear':
-            continue
+        elif model == 'svc':
+            y_probs = svc(X_test, X_train, y_test, y_train, proba=True)
         elif model == 'xgbc':
             y_probs = xgbc(X_test, X_train, y_test, y_train, proba=True)
         elif model == 'rfc':
@@ -525,6 +539,7 @@ def main():
 
     database = fixMissingValues(database)
     database = cleanAndEnchanceData(database)
+    # database = removeOutliers(database)
     y = database[['RainTomorrow']]
     X = database.drop(columns=('RainTomorrow'))
 
@@ -533,19 +548,19 @@ def main():
     X = transformutilsColumns(X, liersSkewindex)
     X = standarise(X)
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=42)
     X_train, y_train = balanceData(X_train, y_train)
 
     # logisticRegression(X_test, X_train, y_test, y_train)
     # svcLinear(X_test, X_train, y_test, y_train)
     # xgbc(X_test, X_train, y_test, y_train)
     # rfc(X_test, X_train, y_test, y_train)
-    # svc(X_test, X_train, y_test, y_train, kernels=['linear', 'rbf', 'sigmoid'])
+    # svc(X_test, X_train, y_test, y_train, kernels=['rbf'])
     #
-    # plotCurves(X_test, X_train, y_test, y_train, ['logistic', 'xgbc', 'rfc'])
+    # plotCurves(X_test, X_train, y_test, y_train, ['logistic', 'xgbc', 'rfc', 'svc'])
     #
     # # Cs and gammas MUST BE same length
-    compareRbfGamma(X_train, y_train,Cs=[0.1,1,10,1000], gammas=[0.1,1,10,100])
+    # compareRbfGamma(X_train, y_train,Cs=[0.1,1,10,1000], gammas=[0.1,1,10,100])
     # comparePolyDegree(X_train, y_train,degrees=[2,3,4,10])
     # compareDifferentkernels(X_train, y_train, gamma=50, C=50)
 
