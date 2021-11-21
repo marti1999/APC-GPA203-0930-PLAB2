@@ -21,6 +21,8 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
 from sklearn.feature_selection import SelectKBest, chi2, f_classif
+from sklearn.model_selection import KFold
+from sklearn.model_selection import cross_val_score
 
 pd.set_option("display.max_columns", None)
 
@@ -154,16 +156,16 @@ def cleanAndEnchanceData(df):
 def EnchanceData(x):
     # esborrant dia (dada identificadora, no vàlides pels models)
     variablesCategoric = list(x.select_dtypes(include=['object']).columns)
-    transformer = ColumnTransformer(
-                            transformers=[('notCategoric',
-                                            OrdinalEncoder(sparse='False', drop='first'),
-                                           variablesCategoric)],
-                            remainder='passthrough')
     # transformer = ColumnTransformer(
-    #     transformers=[('notCategoric',
-    #                    OneHotEncoder(sparse='False', drop='first'),
-    #                    variablesCategoric)],
-    #     remainder='passthrough')
+    #                         transformers=[('notCategoric',
+    #                                         OrdinalEncoder(sparse='False', drop='first'),
+    #                                        variablesCategoric)],
+    #                         remainder='passthrough')
+    transformer = ColumnTransformer(
+        transformers=[('notCategoric',
+                       OneHotEncoder(sparse='False', drop='first'),
+                       variablesCategoric)],
+        remainder='passthrough')
     return transformer.fit_transform(x)
 
 
@@ -203,15 +205,16 @@ def deleteHighlyCorrelatedAttributes(df):
     return df.drop(['Temp3pm','Temp9am','Humidity9am'],axis=1)
 
 def logisticRegression(X_test, X_train, y_test, y_train, proba=False):
-    logireg = LogisticRegression(max_iter=500)
+    logireg = LogisticRegression(C=2.0, fit_intercept=True, penalty='l2', tol=0.001)
     logireg.fit(X_train, y_train.values.ravel())  # https://www.geeksforgeeks.org/python-pandas-series-ravel/
     if proba:
         y_pred = logireg.predict_proba(X_test)
-        return y_pred
+        # return y_pred
 
     y_pred = logireg.predict(X_test)
     print("Accuracy: ", accuracy_score(y_test, y_pred))
     print("f1 score: ", f1_score(y_test, y_pred))
+    print("precicio: ", logireg.score(X_test,y_test))
 
 def svcLinear(X_test, X_train, y_test, y_train):
     # https://scikit-learn.org/stable/modules/svm.html#complexity
@@ -547,17 +550,29 @@ def main():
     # liersSkewindex = NormalitzeData(X)
     # X = transformutilsColumns(X, liersSkewindex)
     # X = standarise(X)
+    # sizes=[0.2,0.3,0.4,0.5]
+    # for size in sizes:
+    #     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=size, random_state=42)
+    #     X_train, y_train = balanceData(X_train, y_train)
+    #
+    #     logisticRegression(X_test, X_train, y_test, y_train)
 
-    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    # X_train, y_train = balanceData(X_train, y_train)
-
-    # logisticRegression(X_test, X_train, y_test, y_train)
+    # for k in range(2,7):
+    #     kf = KFold(n_splits=k)
+    #     print(kf.get_n_splits(X))
+    #     for train_index, test_index in kf.split(X):
+    #         X_train, X_test = X[train_index], X[test_index]
+    #         y_train, y_test = y[train_index], y[test_index]
+    #         X_train, y_train = balanceData(X_train, y_train)
+    #         logisticRegression(X_test, X_train, y_test, y_train)
+    scores = cross_val_score(LogisticRegression(C=2.0, fit_intercept=True, penalty='l2', tol=0.001), X, y, cv=5)
+    print(scores)
     # svcLinear(X_test, X_train, y_test, y_train)
     # xgbc(X_test, X_train, y_test, y_train)
     # rfc(X_test, X_train, y_test, y_train)
     # svc(X_test, X_train, y_test, y_train, kernels=['linear', 'rbf', 'sigmoid'])
-    knn(X_test, X_train, y_test, y_train, 2)
-    # plotCurves(X_test, X_train, y_test, y_train, ['logistic', 'xgbc', 'rfc'])
+    # knn(X_test, X_train, y_test, y_train, 10)
+    #plotCurves(X_test, X_train, y_test, y_train, ['logistic', 'xgbc', 'rfc'])
     #
     # # Cs and gammas MUST BE same length
     # compareRbfGamma(X_train, y_train,Cs=[0.1,1,10,1000], gammas=[0.1,1,10,100])
