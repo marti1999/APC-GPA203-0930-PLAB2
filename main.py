@@ -330,7 +330,7 @@ def comparePolyDegree(X, y, degrees=[3]):
 
     models = []
     for d in degrees:
-        poly_svc = svm.SVC(kernel='poly',degree=d).fit(X_new, y)
+        poly_svc = svm.SVC(kernel='poly',degree=d, C=50).fit(X_new, y)
         models.append(poly_svc)
 
     # create a mesh to plot in
@@ -455,7 +455,7 @@ def compareDifferentkernels(X, y, C=1, gamma=1):
     print(X.columns[selector.get_support(indices=True)])  # top 2 columns
     names = X.columns[selector.get_support(indices=True)].tolist()  # top 2 columns
 
-    svc = svm.SVC(kernel='linear', C=C).fit(X_new, y)
+    svc = svm.SVC(kernel='linear', C=C, gamma=gamma).fit(X_new, y)
     rbf_svc = svm.SVC(kernel='rbf', gamma=gamma, C=C).fit(X_new, y)
     poly_svc = svm.SVC(kernel='poly', gamma=gamma, degree=3, C=C).fit(X_new, y)
     lin_svc = svm.LinearSVC(C=C).fit(X_new, y)
@@ -473,7 +473,7 @@ def compareDifferentkernels(X, y, C=1, gamma=1):
     titles = ['SVC linear',
               'LinearSVC',
               'SVC RBF',
-              'SVC poly d3']
+              'SVC poly degree=3']
 
 
     y['RainTomorrow'] = y['RainTomorrow'].map({1: 'green', 0: 'black'})
@@ -536,28 +536,18 @@ def main():
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     X_train, y_train = balanceData(X_train, y_train)
 
-    logisticRegression(X_test, X_train, y_test, y_train)
-    svcLinear(X_test, X_train, y_test, y_train)
-    xgbc(X_test, X_train, y_test, y_train)
-    rfc(X_test, X_train, y_test, y_train)
-    svc(X_test, X_train, y_test, y_train, kernels=['linear', 'rbf', 'sigmoid'])
-
-    plotCurves(X_test, X_train, y_test, y_train, ['logistic', 'xgbc', 'rfc'])
-
-    C=1
-    gamma = 1
-    for i in range(1,6):
-        compareDifferentkernels(X_train, y_train, gamma= gamma)
-        C= C*3
-        gamma = gamma*3
-
-    # Cs and gammas MUST BE same length
+    # logisticRegression(X_test, X_train, y_test, y_train)
+    # svcLinear(X_test, X_train, y_test, y_train)
+    # xgbc(X_test, X_train, y_test, y_train)
+    # rfc(X_test, X_train, y_test, y_train)
+    # svc(X_test, X_train, y_test, y_train, kernels=['linear', 'rbf', 'sigmoid'])
+    #
+    # plotCurves(X_test, X_train, y_test, y_train, ['logistic', 'xgbc', 'rfc'])
+    #
+    # # Cs and gammas MUST BE same length
     compareRbfGamma(X_train, y_train,Cs=[0.1,1,10,1000], gammas=[0.1,1,10,100])
-    comparePolyDegree(X_train, y_train,degrees=[2,3,4,5])
-
-
-
-
+    # comparePolyDegree(X_train, y_train,degrees=[2,3,4,10])
+    # compareDifferentkernels(X_train, y_train, gamma=50, C=50)
 
 #names = ['Date','Location','MinTemp','MaxTemp','Rainfall','Evaporation','Sunshine','WindGustDir','WindGustSpeed','WindDir9am','WindDir3pm','WindSpeed9am','WindSpeed3pm','Humidity9am','Humidity3pm','Pressure9am','Pressure3pm','Cloud9am','Cloud3pm','Temp9am','Temp3pm','RainToday','RainTomorrow']
 # Press the green button in the gutter to run the script.
