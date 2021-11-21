@@ -1,6 +1,7 @@
 from sklearn import preprocessing
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import OrdinalEncoder
 from sklearn.preprocessing import PowerTransformer
 from sklearn.datasets import make_regression
 import numpy as np
@@ -16,6 +17,7 @@ from sklearn.metrics import confusion_matrix, accuracy_score, f1_score, precisio
     roc_auc_score, roc_curve, auc
 from sklearn.model_selection import train_test_split
 from sklearn import svm
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
 from sklearn.feature_selection import SelectKBest, chi2, f_classif
@@ -39,12 +41,8 @@ def analyseData(database):
 def ModifyDatabase(database):
     databaseChangeRain = database.copy()
     databaseChangeRain['RainTomorrow'] = [1 if i == 'Yes' else 0 for i in databaseChangeRain['RainTomorrow']]
-    # sns.heatmap(databaseChangeRain.corr(), annot=True, linewidths=.5, cmap='rocket');
     # print("valors duplicats: ", database.duplicated().sum())
     # Fer proves amb la columna resultat
-    databaseChangeRain = database.copy()
-    # print(database['RainTomorrow'].value_counts())
-    databaseChangeRain['RainTomorrow'] = [1 if i == 'Yes' else 0 for i in databaseChangeRain['RainTomorrow']]
     # print(databaseChangeRain['RainTomorrow'].value_counts())
     # sns.heatmap(database.corr(), annot=True, linewidths=.5, cmap='rocket');
     # plt.show()
@@ -158,9 +156,14 @@ def EnchanceData(x):
     variablesCategoric = list(x.select_dtypes(include=['object']).columns)
     transformer = ColumnTransformer(
                             transformers=[('notCategoric',
-                                            OneHotEncoder(sparse='False', drop='first'),
+                                            OrdinalEncoder(sparse='False', drop='first'),
                                            variablesCategoric)],
                             remainder='passthrough')
+    # transformer = ColumnTransformer(
+    #     transformers=[('notCategoric',
+    #                    OneHotEncoder(sparse='False', drop='first'),
+    #                    variablesCategoric)],
+    #     remainder='passthrough')
     return transformer.fit_transform(x)
 
 
@@ -254,6 +257,16 @@ def rfc(X_test, X_train, y_test, y_train, proba=False):
     print("Accuracy: ", accuracy_score(y_test, y_pred))
     print("f1 score: ", f1_score(y_test, y_pred))
 
+def knn(X_test, X_train, y_test, y_train, neighbors=2, proba=False):
+    knn = KNeighborsClassifier(n_neighbors=neighbors)
+    knn.fit(X_train, y_train)
+    if proba:
+        y_pred = knn.predict_proba(X_test)
+        return y_pred
+
+    y_pred = knn.predict(X_test)
+    print("Accuracy: ", accuracy_score(y_test, y_pred))
+    print("f1 score: ", f1_score(y_test, y_pred))
 
 def plotCurves(X_test, X_train, y_test, y_train, models):
 
@@ -511,41 +524,43 @@ def compareDifferentkernels(X, y, C=1, gamma=1):
 
 
 def main():
-    # analyseData(database)
-
     database = pd.read_csv('./weatherAUS.csv')
+
+    print(database.head())
+    print(database.info())
+
     # analyseData(database)
 
-    # X, y = ModifyDatabase(database)
-    # X = fixMissingValuesMean(X)
+    X, y = ModifyDatabase(database)
+    X = fixMissingValuesMode(X)
     #
-    # X = EnchanceData(X)
+    X = EnchanceData(X)
     # X = pd.DataFrame(X.toarray())
     # X.columns = ['Location','MinTemp','MaxTemp','Rainfall','Evaporation','Sunshine','WindGustDir','WindGustSpeed','WindDir9am','WindDir3pm','WindSpeed9am','WindSpeed3pm','Humidity9am','Humidity3pm','Pressure9am','Pressure3pm','Cloud9am','Cloud3pm','Temp9am','Temp3pm','RainToday']
 
-    database = fixMissingValues(database)
-    database = cleanAndEnchanceData(database)
-    y = database[['RainTomorrow']]
-    X = database.drop(columns=('RainTomorrow'))
+    # database = fixMissingValues(database)
+    # database = cleanAndEnchanceData(database)
+    # y = database[['RainTomorrow']]
+    # X = database.drop(columns=('RainTomorrow'))
 
 
-    liersSkewindex = NormalitzeData(X)
-    X = transformutilsColumns(X, liersSkewindex)
-    X = standarise(X)
+    # liersSkewindex = NormalitzeData(X)
+    # X = transformutilsColumns(X, liersSkewindex)
+    # X = standarise(X)
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    X_train, y_train = balanceData(X_train, y_train)
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    # X_train, y_train = balanceData(X_train, y_train)
 
     # logisticRegression(X_test, X_train, y_test, y_train)
     # svcLinear(X_test, X_train, y_test, y_train)
     # xgbc(X_test, X_train, y_test, y_train)
     # rfc(X_test, X_train, y_test, y_train)
     # svc(X_test, X_train, y_test, y_train, kernels=['linear', 'rbf', 'sigmoid'])
-    #
+    knn(X_test, X_train, y_test, y_train, 2)
     # plotCurves(X_test, X_train, y_test, y_train, ['logistic', 'xgbc', 'rfc'])
     #
     # # Cs and gammas MUST BE same length
-    compareRbfGamma(X_train, y_train,Cs=[0.1,1,10,1000], gammas=[0.1,1,10,100])
+    # compareRbfGamma(X_train, y_train,Cs=[0.1,1,10,1000], gammas=[0.1,1,10,100])
     # comparePolyDegree(X_train, y_train,degrees=[2,3,4,10])
     # compareDifferentkernels(X_train, y_train, gamma=50, C=50)
 
