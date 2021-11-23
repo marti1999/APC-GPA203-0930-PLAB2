@@ -250,7 +250,7 @@ def svc(X_test, X_train, y_test, y_train, proba=False, kernels=['rbf']):
             return y_pred
         y_pred = svc.predict(X_test.head(100))
         print("\nSVC")
-        printMetrics(y_pred, y_test)
+        printMetrics(y_pred, y_test.head(100))
 
 
 def xgbc(X_test, X_train, y_test, y_train, proba=False):
@@ -498,6 +498,14 @@ def compareDifferentkernels(X, y, C=1, gamma=1):
     print(X.columns[selector.get_support(indices=True)])  # top 2 columns
     names = X.columns[selector.get_support(indices=True)].tolist()  # top 2 columns
 
+    # title for the plots
+    textC = ', C='+str(C)
+    textGamma= ', g='+str(gamma)
+    titles = ['SVC linear',
+              'SVC Sigmoid',
+              'SVC RBF',
+              'SVC poly degree=3']
+
     svc = svm.SVC(kernel='linear', C=C, gamma=gamma).fit(X_new, y)
     rbf_svc = svm.SVC(kernel='rbf', gamma=gamma, C=C).fit(X_new, y)
     poly_svc = svm.SVC(kernel='poly', gamma=gamma, degree=3, C=C).fit(X_new, y)
@@ -511,13 +519,7 @@ def compareDifferentkernels(X, y, C=1, gamma=1):
     xx, yy = np.meshgrid(np.arange(x_min, x_max, h),
                          np.arange(y_min, y_max, h))
 
-    # title for the plots
-    textC = ', C='+str(C)
-    textGamma= ', g='+str(gamma)
-    titles = ['SVC linear',
-              'SVC Sigmoid',
-              'SVC RBF',
-              'SVC poly degree=3']
+
 
 
     y['RainTomorrow'] = y['RainTomorrow'].map({1: 'green', 0: 'black'})
@@ -603,7 +605,7 @@ def printMetrics(y_pred, y_test):
 
 
 def baggingRandomForest(X_test, X_train, y_test, y_train):
-    bagDt = BaggingClassifier(RandomForestClassifier(), n_estimators=20, max_samples=2500,
+    bagDt = BaggingClassifier(RandomForestClassifier(), n_estimators=40, max_samples=1250,
                                 bootstrap=True, n_jobs=-1, oob_score=True)
     bagDt.fit(X_train, y_train)
     y_pred = bagDt.predict(X_test)
@@ -612,7 +614,7 @@ def baggingRandomForest(X_test, X_train, y_test, y_train):
 
 
 def baggingXGBC(X_test, X_train, y_test, y_train):
-    bagDt = BaggingClassifier(XGBClassifier(objective='binary:logistic', use_label_encoder =False, n_estimators=5,gamma=0.5, random_state=0), n_estimators=20, max_samples=2500,
+    bagDt = BaggingClassifier(XGBClassifier(objective='binary:logistic', use_label_encoder =False, n_estimators=5,gamma=0.5, random_state=0), n_estimators=40, max_samples=1250,
                                 bootstrap=True, n_jobs=-1, oob_score=True)
     bagDt.fit(X_train, y_train)
     y_pred = bagDt.predict(X_test)
@@ -624,7 +626,7 @@ def main():
     database = pd.read_csv('./weatherAUS.csv')
 
 
-
+    # analyseData(database)
 
     database = fixMissingValues(database)
     database = cleanAndEnchanceData(database)
@@ -651,13 +653,13 @@ def main():
 
     # logisticRegression(X_test, X_train, y_test, y_train)
     # svc(X_test, X_train, y_test, y_train, False, ["poly"])
-    xgbc(X_test, X_train, y_test, y_train)
-    baggingXGBC(X_test, X_train, y_test, y_train)
-    rfc(X_test, X_train, y_test, y_train)
-    baggingRandomForest(X_test, X_train, y_test, y_train)
+    # xgbc(X_test, X_train, y_test, y_train)
+    # baggingXGBC(X_test, X_train, y_test, y_train)
+    # rfc(X_test, X_train, y_test, y_train)
+    # baggingRandomForest(X_test, X_train, y_test, y_train)
     # svcLinear(X_test, X_train, y_test, y_train)
-    decicionTree(X_test, X_train, y_test, y_train)
-    baggingDecicionTree(X_test, X_train, y_test, y_train)
+    # decicionTree(X_test, X_train, y_test, y_train)
+    # baggingDecicionTree(X_test, X_train, y_test, y_train)
 
 
     # plotCurves(X_test, X_train, y_test, y_train, [ 'svc'])
