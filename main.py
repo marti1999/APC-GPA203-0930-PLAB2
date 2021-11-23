@@ -25,7 +25,8 @@ from sklearn.feature_selection import SelectKBest, chi2, f_classif
 from sklearn.model_selection import KFold
 from sklearn.model_selection import cross_val_score
 from skopt import BayesSearchCV
-
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import BaggingClassifier
 pd.set_option("display.max_columns", None)
 
 
@@ -585,42 +586,106 @@ def BayesianOptimizationRFC(X_train, y_train):
     print('Best Score: %s' % result.best_score_)
     print('Best Hyperparameters: %s' % result.best_params_)
 
+def decicionTree(X_test, X_train, y_test, y_train):
+    dt = DecisionTreeClassifier()
+    dt.fit(X_train, y_train)
+    y_pred = dt.predict(X_test)
+    print("\nDecision Tree")
+    print("Accuracy: ", accuracy_score(y_test, y_pred))
+    print("Recall: ", recall_score(y_test, y_pred))
+    print("f1 score: ", f1_score(y_test, y_pred))
+    print("f1 score average='weighted': ", f1_score(y_test, y_pred, average='weighted'))
+
+def baggingDecicionTree(X_test, X_train, y_test, y_train):
+    bagDt = BaggingClassifier(DecisionTreeClassifier(), n_estimators=500, max_samples=100,
+                                bootstrap=True, n_jobs=-1, oob_score=True)
+    bagDt.fit(X_train, y_train)
+    y_pred = bagDt.predict(X_test)
+    print("\nBagging (Decision Tree)")
+    print("Accuracy: ", accuracy_score(y_test, y_pred))
+    print("Recall: ", recall_score(y_test, y_pred))
+    print("f1 score: ", f1_score(y_test, y_pred))
+    print("f1 score average='weighted': ", f1_score(y_test, y_pred, average='weighted'))
+
 def main():
     database = pd.read_csv('./weatherAUS.csv')
 
-    print(database.head())
-    print(database.info())
+
+
+
+    database = fixMissingValues(database)
+    database = cleanAndEnchanceData(database)
+    # database = removeOutliers(database)
+    y = database[['RainTomorrow']]
+    X = database.drop(columns=('RainTomorrow'))
+    # liersSkewindex = NormalitzeData(X)
+    # X = transformutilsColumns(X, liersSkewindex)
+    X = standarise(X)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, y_train = balanceData(X_train, y_train)
+
+    #
+    #   MARTI
+    #
+    # database = fixMissingValues(database)
+    # database = cleanAndEnchanceData(database)
+    # # database = removeOutliers(database)
+    # y = database[['RainTomorrow']]
+    # X = database.drop(columns=('RainTomorrow'))
+    # X = standarise(X)
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    # X_train, y_train = balanceData(X_train, y_train)
+
+    # logisticRegression(X_test, X_train, y_test, y_train)
+    # svc(X_test, X_train, y_test, y_train, False, ["poly"])
+    # rfc(X_test, X_train, y_test, y_train)
+    # xgbc(X_test, X_train, y_test, y_train)
+    # svcLinear(X_test, X_train, y_test, y_train)
+    decicionTree(X_test, X_train, y_test, y_train)
+    baggingDecicionTree(X_test, X_train, y_test, y_train)
+
+
+    # plotCurves(X_test, X_train, y_test, y_train, [ 'svc'])
+    # # Cs and gammas MUST BE same length
+    # compareRbfGamma(X_train, y_train,Cs=[0.1,1,10,1000], gammas=[0.1,1,10,100])
+    # comparePolyDegree(X_train, y_train,degrees=[2,3,4,10])
+    # compareDifferentkernels(X_train, y_train, gamma=50, C=50)
+    #
+    # RandomSearchRFC(X_train, y_train)
+    # BayesianOptimizationRFC(X_train, y_train)
+
+
+
+
+
+    #
+    #   RICARD
+    #
 
     # analyseData(database)
 
-    X, y = ModifyDatabase(database)
-    X = fixMissingValuesMode(X)
+    # X, y = ModifyDatabase(database)
+    # X = fixMissingValuesMode(X)
     #
-    X = EnchanceData(X)
+    # X = EnchanceData(X)
     # X = pd.DataFrame(X.toarray())
     # X.columns = ['Location','MinTemp','MaxTemp','Rainfall','Evaporation','Sunshine','WindGustDir','WindGustSpeed','WindDir9am','WindDir3pm','WindSpeed9am','WindSpeed3pm','Humidity9am','Humidity3pm','Pressure9am','Pressure3pm','Cloud9am','Cloud3pm','Temp9am','Temp3pm','RainToday']
     # database = fixMissingValues(database)
     # database = cleanAndEnchanceData(database)
     # y = database[['RainTomorrow']]
     # X = database.drop(columns=('RainTomorrow'))
-
-
     # liersSkewindex = NormalitzeData(X)
     # X = transformutilsColumns(X, liersSkewindex)
     # X = standarise(X)
+
+
     # sizes=[0.2,0.3,0.4,0.5]
     # for size in sizes:
     #     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=size, random_state=42)
     #     X_train, y_train = balanceData(X_train, y_train)
 
-        # logisticRegression(X_test, X_train, y_test, y_train)
-        # svc(X_test, X_train, y_test, y_train, False, ["poly"])
-        # rfc(X_test, X_train, y_test, y_train)
-        #xgbc(X_test, X_train, y_test, y_train)
-        # svcLinear(X_test, X_train, y_test, y_train)
-        #knn(X_test, X_train, y_test, y_train, 2)
 
-
+    # knn(X_test, X_train, y_test, y_train, 2)
     # for k in range(2,7):
     #      kf = KFold(n_splits=k)
     #      print(kf.get_n_splits(X))
@@ -635,18 +700,16 @@ def main():
     #          # svcLinear(X_test, X_train, y_test, y_train)
     #          knn(X_test, X_train, y_test, y_train, 2)
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    X_train, y_train = balanceData(X_train, y_train)
-    base_models = [('xgb',
-                    XGBClassifier(objective='binary:logistic', use_label_encoder=False, n_estimators=5, gamma=0.5,
-                                  random_state=0)), ('lr', LogisticRegression(C=2.0, fit_intercept=True, penalty='l2', tol=0.001))]
-    meta_model = LogisticRegression(C=2.0, fit_intercept=True, penalty='l2', tol=0.001)
-    stacking_model = StackingClassifier(estimators=base_models, final_estimator=meta_model, passthrough=True, cv=5)
-
-    stacking_model.fit(X, y)
-    y_pred= stacking_model.predict(X_test)
-    print(f1_score(y_test, y_pred))
+    # base_models = [('xgb',
+    #                 XGBClassifier(objective='binary:logistic', use_label_encoder=False, n_estimators=5, gamma=0.5,
+    #                               random_state=0)), ('lr', LogisticRegression(C=2.0, fit_intercept=True, penalty='l2', tol=0.001))]
+    # meta_model = LogisticRegression(C=2.0, fit_intercept=True, penalty='l2', tol=0.001)
+    # stacking_model = StackingClassifier(estimators=base_models, final_estimator=meta_model, passthrough=True, cv=5)
+    #
+    # stacking_model.fit(X, y)
+    # y_pred= stacking_model.predict(X_test)
+    # print(f1_score(y_test, y_pred))
 
     # scores = cross_val_score(LogisticRegression(C=2.0, fit_intercept=True, penalty='l2', tol=0.001), X, y, cv=5, scoring="f1_macro")
     # scores = cross_val_score(svm.SVC(C=2, kernel="poly", probability=False, random_state=0, tol=0.0001, max_iter=500), X, y, cv=5,scoring="f1_macro")
