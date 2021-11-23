@@ -1,5 +1,6 @@
 from sklearn import preprocessing
 from sklearn.compose import ColumnTransformer
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import OrdinalEncoder
 from sklearn.preprocessing import PowerTransformer
@@ -14,8 +15,8 @@ from imblearn.over_sampling import SMOTE
 from sklearn.ensemble import RandomForestClassifier, StackingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix, accuracy_score, f1_score, precision_recall_curve, average_precision_score, \
-    roc_auc_score, roc_curve, auc, recall_score
-from sklearn.model_selection import train_test_split
+    roc_auc_score, roc_curve, auc, recall_score, precision_score
+from sklearn.model_selection import train_test_split, cross_val_score, RandomizedSearchCV
 from sklearn import svm
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
@@ -23,6 +24,7 @@ from xgboost import XGBClassifier
 from sklearn.feature_selection import SelectKBest, chi2, f_classif
 from sklearn.model_selection import KFold
 from sklearn.model_selection import cross_val_score
+from skopt import BayesSearchCV
 
 pd.set_option("display.max_columns", None)
 
@@ -205,10 +207,6 @@ def deleteHighlyCorrelatedAttributes(df):
     return df.drop(['Temp3pm','Temp9am','Humidity9am'],axis=1)
 
 
-def precission_score(y_test, y_pred):
-    pass
-
-
 def logisticRegression(X_test, X_train, y_test, y_train, proba=False):
     logireg = LogisticRegression(C=2.0, fit_intercept=True, penalty='l2', tol=0.001)
     logireg.fit(X_train, y_train.values.ravel())  # https://www.geeksforgeeks.org/python-pandas-series-ravel/
@@ -236,16 +234,28 @@ def svcLinear(X_test, X_train, y_test, y_train):
 
 def svc(X_test, X_train, y_test, y_train, proba=False, kernels=['rbf']):
     for kernel in kernels:
-        svc = svm.SVC(C=2, kernel=kernel, probability=False, random_state=0, tol=0.0001, max_iter=500)
-        svc.fit(X_train, y_train)
-        # if proba:
-        #     y_pred = svc.predict_proba(X_test.head(100))
-        #     return y_pred
-        y_pred = svc.predict(X_test)
+        ## Per les proves
+        # svc = svm.SVC(C=2, kernel=kernel, probability=False, random_state=0, tol=0.0001, max_iter=500)
+        # svc.fit(X_train, y_train)
+        # # if proba:
+        # #     y_pred = svc.predict_proba(X_test.head(100))
+        # #     return y_pred
+        # y_pred = svc.predict(X_test)
+        # print("\nSVC")
+        # # print("Accuracy: ", accuracy_score(y_test, y_pred))
+        # # print("Recall: ", recall_score(y_test, y_pred))
+        # print("f1 score: ", f1_score(y_test, y_pred))
+        svc = svm.SVC(C=100, kernel=kernel, probability=True, random_state=0)
+        svc.fit(X_train.head(1000), y_train.head(1000).values.ravel())
+        if proba:
+            y_pred = svc.predict_proba(X_test.head(100))
+            return y_pred
+        y_pred = svc.predict(X_test.head(100))
         print("\nSVC")
-        # print("Accuracy: ", accuracy_score(y_test, y_pred))
-        # print("Recall: ", recall_score(y_test, y_pred))
-        print("f1 score: ", f1_score(y_test, y_pred))
+        print("Accuracy: ", accuracy_score(y_test.head(100), y_pred))
+        print("Precission: ", precision_score(y_test.head(100), y_pred))
+        print("Recall: ", recall_score(y_test.head(100), y_pred))
+        print("f1 score: ", f1_score(y_test.head(100), y_pred))
 
 def xgbc(X_test, X_train, y_test, y_train, proba=False):
     xgbc = XGBClassifier(objective='binary:logistic', use_label_encoder =False, n_estimators=5,gamma=0.5, random_state=0)
@@ -305,7 +315,9 @@ def plotCurves(X_test, X_train, y_test, y_train, models):
         recall = {}
         average_precision = {}
         plt.figure()
+        plt.title(model)
         for i in range(2):
+            if model=='svc': y_test = y_test.head(100)
             precision[i], recall[i], _ = precision_recall_curve(y_test == i, y_probs[:, i])
             average_precision[i] = average_precision_score(y_test == i, y_probs[:, i])
 
@@ -330,7 +342,7 @@ def plotCurves(X_test, X_train, y_test, y_train, models):
         for i in range(2):
             plt.plot(fpr[i], tpr[i], label='ROC curve of class {0} (area = {1:0.2f})' ''.format(i, roc_auc[i]))
         plt.legend()
-
+        plt.title(model)
         plt.show()
 
 def transformutilsColumns(X,liersSkew):
@@ -402,11 +414,16 @@ def comparePolyDegree(X, y, degrees=[3]):
     plt.show()
 
 def compareRbfGamma(X, y, Cs=[1], gammas=[1]):
+    # només té dos valors i no permet fer bé un plot
+    # X = X.drop(columns=['RainToday','Temp9am', 'Temp3pm','Cloud9am', 'Cloud3pm','Pressure9am', 'Pressure3pm','Humidity9am','WindSpeed3pm','WindSpeed9am','WindDir3pm'])
+    X = X.drop(columns=['RainToday'])
+
     X = X.head(100)
     y = y.head(100)
 
-    # només té dos valors i no permet fer bé un plot
-    X = X.drop(columns=['RainToday'])
+
+
+
 
     selector = SelectKBest(chi2, k=6)
     selector.fit(X, y)
@@ -426,6 +443,7 @@ def compareRbfGamma(X, y, Cs=[1], gammas=[1]):
         rbf_svc = svm.SVC(kernel='rbf', gamma=g, C=c).fit(X_new, y)
         models.append(rbf_svc)
 
+
     # create a mesh to plot in
     h = .02  # step size in the mesh
     x_min, x_max = X_new[:, 0].min() - 0.1, X_new[:, 0].max() + 0.1
@@ -435,6 +453,7 @@ def compareRbfGamma(X, y, Cs=[1], gammas=[1]):
 
     # title for the plots
     titles = 'SVC RBF'
+
 
     y['RainTomorrow'] = y['RainTomorrow'].map({1: 'green', 0: 'black'})
     colors = y['RainTomorrow'].to_list()
@@ -488,7 +507,8 @@ def compareDifferentkernels(X, y, C=1, gamma=1):
     svc = svm.SVC(kernel='linear', C=C, gamma=gamma).fit(X_new, y)
     rbf_svc = svm.SVC(kernel='rbf', gamma=gamma, C=C).fit(X_new, y)
     poly_svc = svm.SVC(kernel='poly', gamma=gamma, degree=3, C=C).fit(X_new, y)
-    lin_svc = svm.LinearSVC(C=C).fit(X_new, y)
+    sigmoid_svc = svm.SVC(kernel='sigmoid', gamma=gamma, C=C).fit(X_new, y)
+    # lin_svc = svm.LinearSVC(C=C).fit(X_new, y)
 
     # create a mesh to plot in
     h = .02  # step size in the mesh
@@ -501,7 +521,7 @@ def compareDifferentkernels(X, y, C=1, gamma=1):
     textC = ', C='+str(C)
     textGamma= ', g='+str(gamma)
     titles = ['SVC linear',
-              'LinearSVC',
+              'SVC Sigmoid',
               'SVC RBF',
               'SVC poly degree=3']
 
@@ -509,7 +529,7 @@ def compareDifferentkernels(X, y, C=1, gamma=1):
     y['RainTomorrow'] = y['RainTomorrow'].map({1: 'green', 0: 'black'})
     colors = y['RainTomorrow'].to_list()
 
-    for i, clf in enumerate((svc, lin_svc, rbf_svc, poly_svc)):
+    for i, clf in enumerate((svc, sigmoid_svc, rbf_svc, poly_svc)):
         # Plot the decision boundary. For that, we will assign a color to each
         # point in the mesh [x_min, x_max]x[y_min, y_max].
         plt.subplot(2, 2, i + 1)
@@ -539,6 +559,31 @@ def compareDifferentkernels(X, y, C=1, gamma=1):
     # print("Accuracy: ", accuracy_score(y.head(500), y_pred))
     # print("f1 score: ", f1_score(y.head(500), y_pred))
 
+def RandomSearchRFC(X_train, y_train):
+    param = {'n_estimators': [100, 300, 500],
+             'max_depth': [4, 5, 6],
+             'min_samples_split': [2, 4, 6],
+             'min_samples_leaf': [1, 3, 5]}
+
+    random_forest = RandomForestClassifier()
+    search = RandomizedSearchCV(random_forest, param_distributions=param, n_iter=50, n_jobs=-1, cv=3, random_state=1)
+    result = search.fit(X_train, y_train)
+
+    print('Best Score: %s' % result.best_score_)
+    print('Best Hyperparameters: %s' % result.best_params_)
+
+def BayesianOptimizationRFC(X_train, y_train):
+    param = {'n_estimators': [100, 300, 500],
+             'max_depth': [4, 5, 6],
+             'min_samples_split': [2, 4, 6],
+             'min_samples_leaf': [1, 3, 5]}
+
+    random_forest = RandomForestClassifier()
+    search = BayesSearchCV(random_forest, search_spaces=param, n_jobs=-1, cv=3)
+    result = search.fit(X_train, y_train)
+
+    print('Best Score: %s' % result.best_score_)
+    print('Best Hyperparameters: %s' % result.best_params_)
 
 def main():
     database = pd.read_csv('./weatherAUS.csv')
@@ -591,6 +636,7 @@ def main():
     #          knn(X_test, X_train, y_test, y_train, 2)
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
     X_train, y_train = balanceData(X_train, y_train)
     base_models = [('xgb',
                     XGBClassifier(objective='binary:logistic', use_label_encoder=False, n_estimators=5, gamma=0.5,
@@ -613,18 +659,8 @@ def main():
     #     KNeighborsClassifier(n_neighbors=2, weights="uniform", p=2),
     #     X, y, cv=5, scoring="f1_macro")
     # print(scores)
-    # svcLinear(X_test, X_train, y_test, y_train)
-    # xgbc(X_test, X_train, y_test, y_train)
-    # rfc(X_test, X_train, y_test, y_train)
-    # svc(X_test, X_train, y_test, y_train, kernels=['linear', 'rbf', 'sigmoid'])
-    # knn(X_test, X_train, y_test, y_train, 10)
-    #plotCurves(X_test, X_train, y_test, y_train, ['logistic', 'xgbc', 'rfc'])
 
-    #
-    # # Cs and gammas MUST BE same length
-    # compareRbfGamma(X_train, y_train,Cs=[0.1,1,10,1000], gammas=[0.1,1,10,100])
-    # comparePolyDegree(X_train, y_train,degrees=[2,3,4,10])
-    # compareDifferentkernels(X_train, y_train, gamma=50, C=50)
+
 
 #names = ['Date','Location','MinTemp','MaxTemp','Rainfall','Evaporation','Sunshine','WindGustDir','WindGustSpeed','WindDir9am','WindDir3pm','WindSpeed9am','WindSpeed3pm','Humidity9am','Humidity3pm','Pressure9am','Pressure3pm','Cloud9am','Cloud3pm','Temp9am','Temp3pm','RainToday','RainTomorrow']
 # Press the green button in the gutter to run the script.
