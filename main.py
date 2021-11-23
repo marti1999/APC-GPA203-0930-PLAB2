@@ -594,7 +594,6 @@ def decicionTree(X_test, X_train, y_test, y_train):
     print("Accuracy: ", accuracy_score(y_test, y_pred))
     print("Recall: ", recall_score(y_test, y_pred))
     print("f1 score: ", f1_score(y_test, y_pred))
-    print("f1 score average='weighted': ", f1_score(y_test, y_pred, average='weighted'))
 
 def baggingDecicionTree(X_test, X_train, y_test, y_train):
     bagDt = BaggingClassifier(DecisionTreeClassifier(), n_estimators=500, max_samples=100,
@@ -605,7 +604,16 @@ def baggingDecicionTree(X_test, X_train, y_test, y_train):
     print("Accuracy: ", accuracy_score(y_test, y_pred))
     print("Recall: ", recall_score(y_test, y_pred))
     print("f1 score: ", f1_score(y_test, y_pred))
-    print("f1 score average='weighted': ", f1_score(y_test, y_pred, average='weighted'))
+
+def baggingRandomForest(X_test, X_train, y_test, y_train):
+    bagDt = BaggingClassifier(RandomForestClassifier(), n_estimators=20, max_samples=2500,
+                                bootstrap=True, n_jobs=-1, oob_score=True)
+    bagDt.fit(X_train, y_train)
+    y_pred = bagDt.predict(X_test)
+    print("\nBagging (Random Forest)")
+    print("Accuracy: ", accuracy_score(y_test, y_pred))
+    print("Recall: ", recall_score(y_test, y_pred))
+    print("f1 score: ", f1_score(y_test, y_pred))
 
 def main():
     database = pd.read_csv('./weatherAUS.csv')
@@ -638,9 +646,10 @@ def main():
 
     # logisticRegression(X_test, X_train, y_test, y_train)
     # svc(X_test, X_train, y_test, y_train, False, ["poly"])
-    # rfc(X_test, X_train, y_test, y_train)
+    rfc(X_test, X_train, y_test, y_train)
     # xgbc(X_test, X_train, y_test, y_train)
     # svcLinear(X_test, X_train, y_test, y_train)
+    baggingRandomForest(X_test, X_train, y_test, y_train)
     decicionTree(X_test, X_train, y_test, y_train)
     baggingDecicionTree(X_test, X_train, y_test, y_train)
 
