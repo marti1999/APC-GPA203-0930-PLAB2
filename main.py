@@ -11,10 +11,10 @@ import seaborn as sns
 import scipy.stats
 from scipy import stats
 from imblearn.over_sampling import SMOTE
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, StackingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix, accuracy_score, f1_score, precision_recall_curve, average_precision_score, \
-    roc_auc_score, roc_curve, auc
+    roc_auc_score, roc_curve, auc, recall_score
 from sklearn.model_selection import train_test_split
 from sklearn import svm
 from sklearn.neighbors import KNeighborsClassifier
@@ -204,6 +204,11 @@ def NormalitzeData(df):
 def deleteHighlyCorrelatedAttributes(df):
     return df.drop(['Temp3pm','Temp9am','Humidity9am'],axis=1)
 
+
+def precission_score(y_test, y_pred):
+    pass
+
+
 def logisticRegression(X_test, X_train, y_test, y_train, proba=False):
     logireg = LogisticRegression(C=2.0, fit_intercept=True, penalty='l2', tol=0.001)
     logireg.fit(X_train, y_train.values.ravel())  # https://www.geeksforgeeks.org/python-pandas-series-ravel/
@@ -212,63 +217,72 @@ def logisticRegression(X_test, X_train, y_test, y_train, proba=False):
         # return y_pred
 
     y_pred = logireg.predict(X_test)
-    print("Accuracy: ", accuracy_score(y_test, y_pred))
+    print("\nLogistic")
+    # print("Accuracy: ", accuracy_score(y_test, y_pred))
+    # print("Recall: ", recall_score(y_test, y_pred))
     print("f1 score: ", f1_score(y_test, y_pred))
-    print("precicio: ", logireg.score(X_test,y_test))
+    # print("precicio: ", logireg.score(X_test,y_test))
 
 def svcLinear(X_test, X_train, y_test, y_train):
     # https://scikit-learn.org/stable/modules/svm.html#complexity
-    svc = svm.LinearSVC(random_state=0, tol=1e-5)
+    svc = svm.LinearSVC(C=2,max_iter=500, penalty="l2",random_state=0, tol=1e-4)
     svc.fit(X_train, y_train.values.ravel())
     y_pred = svc.predict(X_test)
-    print("Accuracy: ", accuracy_score(y_test, y_pred))
+    print("\nSVC Linear")
+    # print("Accuracy: ", accuracy_score(y_test, y_pred))
+    # print("Recall: ", recall_score(y_test, y_pred))
     print("f1 score: ", f1_score(y_test, y_pred))
 
 
 def svc(X_test, X_train, y_test, y_train, proba=False, kernels=['rbf']):
     for kernel in kernels:
-        svc = svm.SVC(C=10.0, kernel=kernel, gamma=0.9, probability=True, random_state=0)
-        svc.fit(X_train.head(10000), y_train.head(10000).values.ravel())
-        if proba:
-            y_pred = svc.predict_proba(X_test.head(10000))
-            return y_pred
-        y_pred = svc.predict(X_test.head(10000))
-        print("Accuracy: ", accuracy_score(y_test.head(10000), y_pred))
-        print("f1 score: ", f1_score(y_test.head(10000), y_pred))
-
+        svc = svm.SVC(C=2, kernel=kernel, probability=False, random_state=0, tol=0.0001, max_iter=500)
+        svc.fit(X_train, y_train)
+        # if proba:
+        #     y_pred = svc.predict_proba(X_test.head(100))
+        #     return y_pred
+        y_pred = svc.predict(X_test)
+        print("\nSVC")
+        # print("Accuracy: ", accuracy_score(y_test, y_pred))
+        # print("Recall: ", recall_score(y_test, y_pred))
+        print("f1 score: ", f1_score(y_test, y_pred))
 
 def xgbc(X_test, X_train, y_test, y_train, proba=False):
-    xgbc = XGBClassifier(objective='binary:logistic', use_label_encoder =False)
+    xgbc = XGBClassifier(objective='binary:logistic', use_label_encoder =False, n_estimators=5,gamma=0.5, random_state=0)
     xgbc.fit(X_train,y_train.values.ravel())
     if proba:
         y_pred = xgbc.predict_proba(X_test)
         return y_pred
 
     y_pred = xgbc.predict(X_test)
-    print("Accuracy: ", accuracy_score(y_test, y_pred))
+    print("\nXGBC")
+    # print("Accuracy: ", accuracy_score(y_test, y_pred))
+    # print("Recall: ", recall_score(y_test, y_pred))
     print("f1 score: ", f1_score(y_test, y_pred))
 
 
 def rfc(X_test, X_train, y_test, y_train, proba=False):
-    clf = RandomForestClassifier(random_state=0)
-    clf.fit(X_train,y_train.values.ravel())
+    clf = RandomForestClassifier(max_leaf_nodes=15,n_estimators=100, ccp_alpha=0.0,bootstrap=True, random_state=0)
+    clf.fit(X_train,y_train)
     if proba:
         y_pred = clf.predict_proba(X_test)
         return y_pred
 
     y_pred = clf.predict(X_test)
-    print("Accuracy: ", accuracy_score(y_test, y_pred))
+    print("\nRandom Forest")
+    # print("Accuracy: ", accuracy_score(y_test, y_pred))
+    # print("Recall: ", recall_score(y_test, y_pred))
     print("f1 score: ", f1_score(y_test, y_pred))
 
 def knn(X_test, X_train, y_test, y_train, neighbors=2, proba=False):
-    knn = KNeighborsClassifier(n_neighbors=neighbors)
+    knn = KNeighborsClassifier(n_neighbors=neighbors, weights="uniform", p=2)
     knn.fit(X_train, y_train)
     if proba:
         y_pred = knn.predict_proba(X_test)
         return y_pred
 
     y_pred = knn.predict(X_test)
-    print("Accuracy: ", accuracy_score(y_test, y_pred))
+    # print("Accuracy: ", accuracy_score(y_test, y_pred))
     print("f1 score: ", f1_score(y_test, y_pred))
 
 def plotCurves(X_test, X_train, y_test, y_train, models):
@@ -280,8 +294,8 @@ def plotCurves(X_test, X_train, y_test, y_train, models):
 
         if model == 'logistic':
             y_probs = logisticRegression(X_test, X_train, y_test, y_train, proba=True)
-        elif model == 'svcLinear':
-            continue
+        elif model == 'svc':
+            y_probs = svc(X_test, X_train, y_test, y_train, proba=True)
         elif model == 'xgbc':
             y_probs = xgbc(X_test, X_train, y_test, y_train, proba=True)
         elif model == 'rfc':
@@ -540,7 +554,6 @@ def main():
     X = EnchanceData(X)
     # X = pd.DataFrame(X.toarray())
     # X.columns = ['Location','MinTemp','MaxTemp','Rainfall','Evaporation','Sunshine','WindGustDir','WindGustSpeed','WindDir9am','WindDir3pm','WindSpeed9am','WindSpeed3pm','Humidity9am','Humidity3pm','Pressure9am','Pressure3pm','Cloud9am','Cloud3pm','Temp9am','Temp3pm','RainToday']
-
     # database = fixMissingValues(database)
     # database = cleanAndEnchanceData(database)
     # y = database[['RainTomorrow']]
@@ -554,25 +567,59 @@ def main():
     # for size in sizes:
     #     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=size, random_state=42)
     #     X_train, y_train = balanceData(X_train, y_train)
-    #
-    #     logisticRegression(X_test, X_train, y_test, y_train)
+
+        # logisticRegression(X_test, X_train, y_test, y_train)
+        # svc(X_test, X_train, y_test, y_train, False, ["poly"])
+        # rfc(X_test, X_train, y_test, y_train)
+        #xgbc(X_test, X_train, y_test, y_train)
+        # svcLinear(X_test, X_train, y_test, y_train)
+        #knn(X_test, X_train, y_test, y_train, 2)
+
 
     # for k in range(2,7):
-    #     kf = KFold(n_splits=k)
-    #     print(kf.get_n_splits(X))
-    #     for train_index, test_index in kf.split(X):
-    #         X_train, X_test = X[train_index], X[test_index]
-    #         y_train, y_test = y[train_index], y[test_index]
-    #         X_train, y_train = balanceData(X_train, y_train)
-    #         logisticRegression(X_test, X_train, y_test, y_train)
-    scores = cross_val_score(LogisticRegression(C=2.0, fit_intercept=True, penalty='l2', tol=0.001), X, y, cv=5)
-    print(scores)
+    #      kf = KFold(n_splits=k)
+    #      print(kf.get_n_splits(X))
+    #      for train_index, test_index in kf.split(X):
+    #          X_train, X_test = X[train_index], X[test_index]
+    #          y_train, y_test = y[train_index], y[test_index]
+    #          X_train, y_train = balanceData(X_train, y_train)
+    #          # logisticRegression(X_test, X_train, y_test, y_train)
+    #          # svc(X_test, X_train, y_test, y_train, False, ["poly"])
+    #          # rfc(X_test, X_train, y_test, y_train)
+    #          # xgbc(X_test, X_train, y_test, y_train)
+    #          # svcLinear(X_test, X_train, y_test, y_train)
+    #          knn(X_test, X_train, y_test, y_train, 2)
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, y_train = balanceData(X_train, y_train)
+    base_models = [('xgb',
+                    XGBClassifier(objective='binary:logistic', use_label_encoder=False, n_estimators=5, gamma=0.5,
+                                  random_state=0)), ('lr', LogisticRegression(C=2.0, fit_intercept=True, penalty='l2', tol=0.001))]
+    meta_model = LogisticRegression(C=2.0, fit_intercept=True, penalty='l2', tol=0.001)
+    stacking_model = StackingClassifier(estimators=base_models, final_estimator=meta_model, passthrough=True, cv=5)
+
+    stacking_model.fit(X, y)
+    y_pred= stacking_model.predict(X_test)
+    print(f1_score(y_test, y_pred))
+
+    # scores = cross_val_score(LogisticRegression(C=2.0, fit_intercept=True, penalty='l2', tol=0.001), X, y, cv=5, scoring="f1_macro")
+    # scores = cross_val_score(svm.SVC(C=2, kernel="poly", probability=False, random_state=0, tol=0.0001, max_iter=500), X, y, cv=5,scoring="f1_macro")
+    # scores = cross_val_score(RandomForestClassifier(max_leaf_nodes=15,n_estimators=100, ccp_alpha=0.0,bootstrap=True, random_state=0),X, y, cv=5, scoring="f1_macro")
+    # scores = cross_val_score(XGBClassifier(objective='binary:logistic', use_label_encoder =False, n_estimators=5,gamma=0.5, random_state=0),X, y, cv=5, scoring="f1_macro")
+    # scores = cross_val_score(
+    #     svm.LinearSVC(C=2,max_iter=500, penalty="l2",random_state=0, tol=1e-4),
+    #     X, y, cv=5, scoring="f1_macro")
+    # scores = cross_val_score(
+    #     KNeighborsClassifier(n_neighbors=2, weights="uniform", p=2),
+    #     X, y, cv=5, scoring="f1_macro")
+    # print(scores)
     # svcLinear(X_test, X_train, y_test, y_train)
     # xgbc(X_test, X_train, y_test, y_train)
     # rfc(X_test, X_train, y_test, y_train)
     # svc(X_test, X_train, y_test, y_train, kernels=['linear', 'rbf', 'sigmoid'])
     # knn(X_test, X_train, y_test, y_train, 10)
     #plotCurves(X_test, X_train, y_test, y_train, ['logistic', 'xgbc', 'rfc'])
+
     #
     # # Cs and gammas MUST BE same length
     # compareRbfGamma(X_train, y_train,Cs=[0.1,1,10,1000], gammas=[0.1,1,10,100])
