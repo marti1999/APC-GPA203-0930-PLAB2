@@ -217,10 +217,8 @@ def logisticRegression(X_test, X_train, y_test, y_train, proba=False):
 
     y_pred = logireg.predict(X_test)
     print("\nLogistic")
-    # print("Accuracy: ", accuracy_score(y_test, y_pred))
-    # print("Recall: ", recall_score(y_test, y_pred))
-    print("f1 score: ", f1_score(y_test, y_pred))
-    # print("precicio: ", logireg.score(X_test,y_test))
+    printMetrics(y_pred, y_test)
+
 
 def svcLinear(X_test, X_train, y_test, y_train):
     # https://scikit-learn.org/stable/modules/svm.html#complexity
@@ -228,9 +226,8 @@ def svcLinear(X_test, X_train, y_test, y_train):
     svc.fit(X_train, y_train.values.ravel())
     y_pred = svc.predict(X_test)
     print("\nSVC Linear")
-    # print("Accuracy: ", accuracy_score(y_test, y_pred))
-    # print("Recall: ", recall_score(y_test, y_pred))
-    print("f1 score: ", f1_score(y_test, y_pred))
+    printMetrics(y_pred, y_test)
+
 
 
 def svc(X_test, X_train, y_test, y_train, proba=False, kernels=['rbf']):
@@ -253,10 +250,8 @@ def svc(X_test, X_train, y_test, y_train, proba=False, kernels=['rbf']):
             return y_pred
         y_pred = svc.predict(X_test.head(100))
         print("\nSVC")
-        print("Accuracy: ", accuracy_score(y_test.head(100), y_pred))
-        print("Precission: ", precision_score(y_test.head(100), y_pred))
-        print("Recall: ", recall_score(y_test.head(100), y_pred))
-        print("f1 score: ", f1_score(y_test.head(100), y_pred))
+        printMetrics(y_pred, y_test)
+
 
 def xgbc(X_test, X_train, y_test, y_train, proba=False):
     xgbc = XGBClassifier(objective='binary:logistic', use_label_encoder =False, n_estimators=5,gamma=0.5, random_state=0)
@@ -267,9 +262,8 @@ def xgbc(X_test, X_train, y_test, y_train, proba=False):
 
     y_pred = xgbc.predict(X_test)
     print("\nXGBC")
-    # print("Accuracy: ", accuracy_score(y_test, y_pred))
-    # print("Recall: ", recall_score(y_test, y_pred))
-    print("f1 score: ", f1_score(y_test, y_pred))
+    printMetrics(y_pred, y_test)
+
 
 
 def rfc(X_test, X_train, y_test, y_train, proba=False):
@@ -281,9 +275,8 @@ def rfc(X_test, X_train, y_test, y_train, proba=False):
 
     y_pred = clf.predict(X_test)
     print("\nRandom Forest")
-    # print("Accuracy: ", accuracy_score(y_test, y_pred))
-    # print("Recall: ", recall_score(y_test, y_pred))
-    print("f1 score: ", f1_score(y_test, y_pred))
+    printMetrics(y_pred, y_test)
+
 
 def knn(X_test, X_train, y_test, y_train, neighbors=2, proba=False):
     knn = KNeighborsClassifier(n_neighbors=neighbors, weights="uniform", p=2)
@@ -591,9 +584,8 @@ def decicionTree(X_test, X_train, y_test, y_train):
     dt.fit(X_train, y_train)
     y_pred = dt.predict(X_test)
     print("\nDecision Tree")
-    print("Accuracy: ", accuracy_score(y_test, y_pred))
-    print("Recall: ", recall_score(y_test, y_pred))
-    print("f1 score: ", f1_score(y_test, y_pred))
+    printMetrics(y_pred, y_test)
+
 
 def baggingDecicionTree(X_test, X_train, y_test, y_train):
     bagDt = BaggingClassifier(DecisionTreeClassifier(), n_estimators=500, max_samples=100,
@@ -601,9 +593,14 @@ def baggingDecicionTree(X_test, X_train, y_test, y_train):
     bagDt.fit(X_train, y_train)
     y_pred = bagDt.predict(X_test)
     print("\nBagging (Decision Tree)")
+    printMetrics(y_pred, y_test)
+
+
+def printMetrics(y_pred, y_test):
     print("Accuracy: ", accuracy_score(y_test, y_pred))
     print("Recall: ", recall_score(y_test, y_pred))
     print("f1 score: ", f1_score(y_test, y_pred))
+
 
 def baggingRandomForest(X_test, X_train, y_test, y_train):
     bagDt = BaggingClassifier(RandomForestClassifier(), n_estimators=20, max_samples=2500,
@@ -611,9 +608,17 @@ def baggingRandomForest(X_test, X_train, y_test, y_train):
     bagDt.fit(X_train, y_train)
     y_pred = bagDt.predict(X_test)
     print("\nBagging (Random Forest)")
-    print("Accuracy: ", accuracy_score(y_test, y_pred))
-    print("Recall: ", recall_score(y_test, y_pred))
-    print("f1 score: ", f1_score(y_test, y_pred))
+    printMetrics(y_pred, y_test)
+
+
+def baggingXGBC(X_test, X_train, y_test, y_train):
+    bagDt = BaggingClassifier(XGBClassifier(objective='binary:logistic', use_label_encoder =False, n_estimators=5,gamma=0.5, random_state=0), n_estimators=20, max_samples=2500,
+                                bootstrap=True, n_jobs=-1, oob_score=True)
+    bagDt.fit(X_train, y_train)
+    y_pred = bagDt.predict(X_test)
+    print("\nBagging (XGBClassifier)")
+    printMetrics(y_pred, y_test)
+
 
 def main():
     database = pd.read_csv('./weatherAUS.csv')
@@ -646,10 +651,11 @@ def main():
 
     # logisticRegression(X_test, X_train, y_test, y_train)
     # svc(X_test, X_train, y_test, y_train, False, ["poly"])
+    xgbc(X_test, X_train, y_test, y_train)
+    baggingXGBC(X_test, X_train, y_test, y_train)
     rfc(X_test, X_train, y_test, y_train)
-    # xgbc(X_test, X_train, y_test, y_train)
-    # svcLinear(X_test, X_train, y_test, y_train)
     baggingRandomForest(X_test, X_train, y_test, y_train)
+    # svcLinear(X_test, X_train, y_test, y_train)
     decicionTree(X_test, X_train, y_test, y_train)
     baggingDecicionTree(X_test, X_train, y_test, y_train)
 
