@@ -622,6 +622,43 @@ def baggingXGBC(X_test, X_train, y_test, y_train):
     print("\nBagging (XGBClassifier)")
     printMetrics(y_pred, y_test)
 
+def aprenentatges(X, y, models, sizes):
+    for size in sizes:
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=size, random_state=42)
+        X_train, y_train = balanceData(X_train, y_train)
+        for model in models:
+            model.fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+            print("\nLogistic")
+            printMetrics(y_pred, y_test)
+
+def kfold(X, y):
+    for k in range(2, 7):
+        kf = KFold(n_splits=k)
+        print(kf.get_n_splits(X))
+        for train_index, test_index in kf.split(X):
+         X_train, X_test = X[train_index], X[test_index]
+         y_train, y_test = y[train_index], y[test_index]
+         X_train, y_train = balanceData(X_train, y_train)
+         # logisticRegression(X_test, X_train, y_test, y_train)
+         # svc(X_test, X_train, y_test, y_train, False, ["poly"])
+         # rfc(X_test, X_train, y_test, y_train)
+         # xgbc(X_test, X_train, y_test, y_train)
+         # svcLinear(X_test, X_train, y_test, y_train)
+         knn(X_test, X_train, y_test, y_train, 2)
+
+def strack_modle(X,y):
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, y_train = balanceData(X_train, y_train)
+    base_models = [('xgb',
+                    XGBClassifier(objective='binary:logistic', use_label_encoder=False, n_estimators=5, gamma=0.5,
+                                  random_state=0)), ('lr', LogisticRegression(C=2.0, fit_intercept=True, penalty='l2', tol=0.001))]
+    meta_model = LogisticRegression(C=2.0, fit_intercept=True, penalty='l2', tol=0.001)
+    stacking_model = StackingClassifier(estimators=base_models, final_estimator=meta_model, passthrough=True, cv=5)
+
+    stacking_model.fit(X_train, y_train)
+    y_pred= stacking_model.predict(X_test)
+    print(f1_score(y_test, y_pred))
 
 def main():
     database = pd.read_csv('./weatherAUS.csv')
@@ -658,72 +695,30 @@ def main():
     RandomSearchRFC(X_train, y_train)
     BayesianOptimizationRFC(X_train, y_train)
 
+    #X, y = ModifyDatabase(database)
+    #X = fixMissingValuesMedian(X)
 
-    #
-    #   RICARD
-    #
-
-    # analyseData(database)
-
-    ## Declaramos valores para el eje y
-
-    ## Creamos Gráfica
-
-    ## Legenda en el eje y
-
-    ## Legenda en el eje x
-
-
-    ## Mostramos Gráfica
-    # plt.show()
-    # X, y = ModifyDatabase(database)
-    # X = fixMissingValuesMode(X)
-    #
     # X = EnchanceData(X)
     # X = pd.DataFrame(X.toarray())
-    # X.columns = ['Location','MinTemp','MaxTemp','Rainfall','Evaporation','Sunshine','WindGustDir','WindGustSpeed','WindDir9am','WindDir3pm','WindSpeed9am','WindSpeed3pm','Humidity9am','Humidity3pm','Pressure9am','Pressure3pm','Cloud9am','Cloud3pm','Temp9am','Temp3pm','RainToday']
-    # database = fixMissingValues(database)
-    # database = cleanAndEnchanceData(database)
-    # y = database[['RainTomorrow']]
-    # X = database.drop(columns=('RainTomorrow'))
+
     # liersSkewindex = NormalitzeData(X)
     # X = transformutilsColumns(X, liersSkewindex)
     # X = standarise(X)
 
+    sizes = [0.2, 0.3, 0.4, 0.5]
+    lr = LogisticRegression()
+    svmc = svm.SVC(C=100, kernel="poly", probability=True, random_state=0)
+    dt = DecisionTreeClassifier(max_depth=6)
+    rf = RandomForestClassifier(max_samples=0.9)
+    knn = KNeighborsClassifier(n_neighbors=5)
 
-    # sizes=[0.2,0.3,0.4,0.5]
-    # for size in sizes:
-    #     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=size, random_state=42)
-    #     X_train, y_train = balanceData(X_train, y_train)
+    models = [lr, dt, rf, knn]
+    aprenentatges(X, y, models, sizes)
+    kfold(X,y)
+    strack_modle(X,y)
 
-
-    # knn(X_test, X_train, y_test, y_train, 2)
-    # for k in range(2,7):
-    #      kf = KFold(n_splits=k)
-    #      print(kf.get_n_splits(X))
-    #      for train_index, test_index in kf.split(X):
-    #          X_train, X_test = X[train_index], X[test_index]
-    #          y_train, y_test = y[train_index], y[test_index]
-    #          X_train, y_train = balanceData(X_train, y_train)
-    #          # logisticRegression(X_test, X_train, y_test, y_train)
-    #          # svc(X_test, X_train, y_test, y_train, False, ["poly"])
-    #          # rfc(X_test, X_train, y_test, y_train)
-    #          # xgbc(X_test, X_train, y_test, y_train)
-    #          # svcLinear(X_test, X_train, y_test, y_train)
-    #          knn(X_test, X_train, y_test, y_train, 2)
-
-
-    # base_models = [('xgb',
-    #                 XGBClassifier(objective='binary:logistic', use_label_encoder=False, n_estimators=5, gamma=0.5,
-    #                               random_state=0)), ('lr', LogisticRegression(C=2.0, fit_intercept=True, penalty='l2', tol=0.001))]
-    # meta_model = LogisticRegression(C=2.0, fit_intercept=True, penalty='l2', tol=0.001)
-    # stacking_model = StackingClassifier(estimators=base_models, final_estimator=meta_model, passthrough=True, cv=5)
-    #
-    # stacking_model.fit(X, y)
-    # y_pred= stacking_model.predict(X_test)
-    # print(f1_score(y_test, y_pred))
-
-    # scores = cross_val_score(LogisticRegression(C=2.0, fit_intercept=True, penalty='l2', tol=0.001), X, y, cv=5, scoring="f1_macro")
+    #Cros validation
+    scores = cross_val_score(LogisticRegression(C=2.0, fit_intercept=True, penalty='l2', tol=0.001), X, y, cv=5, scoring="f1_macro")
     # scores = cross_val_score(svm.SVC(C=2, kernel="poly", probability=False, random_state=0, tol=0.0001, max_iter=500), X, y, cv=5,scoring="f1_macro")
     # scores = cross_val_score(RandomForestClassifier(max_leaf_nodes=15,n_estimators=100, ccp_alpha=0.0,bootstrap=True, random_state=0),X, y, cv=5, scoring="f1_macro")
     # scores = cross_val_score(XGBClassifier(objective='binary:logistic', use_label_encoder =False, n_estimators=5,gamma=0.5, random_state=0),X, y, cv=5, scoring="f1_macro")
@@ -733,7 +728,7 @@ def main():
     # scores = cross_val_score(
     #     KNeighborsClassifier(n_neighbors=2, weights="uniform", p=2),
     #     X, y, cv=5, scoring="f1_macro")
-    # print(scores)
+    print(scores)
 
 
 
