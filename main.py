@@ -25,9 +25,9 @@ from xgboost import XGBClassifier
 from sklearn.feature_selection import SelectKBest, chi2, f_classif
 from sklearn.model_selection import KFold
 from sklearn.model_selection import cross_val_score
-# from skopt import BayesSearchCV
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import BaggingClassifier
+from sklearn.preprocessing import PolynomialFeatures
 pd.set_option("display.max_columns", None)
 
 
@@ -673,6 +673,10 @@ def main():
     X = standarise(X)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     X_train, y_train = balanceData(X_train, y_train)
+
+    # poly = PolynomialFeatures(degree=4)
+    # X_train = poly.fit_transform(X_train)
+    # X_test = poly.fit_transform(X_test)
 
     logisticRegression(X_test, X_train, y_test, y_train)
     svc(X_test, X_train, y_test, y_train, False, ["poly"])
