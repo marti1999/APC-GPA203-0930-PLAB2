@@ -24,7 +24,7 @@ from xgboost import XGBClassifier
 from sklearn.feature_selection import SelectKBest, chi2, f_classif
 from sklearn.model_selection import KFold
 from sklearn.model_selection import cross_val_score
-from skopt import BayesSearchCV
+# from skopt import BayesSearchCV
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import BaggingClassifier
 pd.set_option("display.max_columns", None)
@@ -55,7 +55,7 @@ def ModifyDatabase(database):
     databaseChangeRain.drop(columns=cols_to_drop, inplace=True)
     x = databaseChangeRain.drop(['RainTomorrow'], axis=1)
     y = databaseChangeRain['RainTomorrow']
-    plotVariable=['Rainfall', 'Evaporation', 'WindSpeed9am','WindSpeed3pm','MinTemp']
+    # plotVariable=['Rainfall', 'Evaporation', 'WindSpeed9am','WindSpeed3pm','MinTemp']
     # creacio d'un plot per veure la distribucio de les dades
     # plotVariablesBox(databaseChangeRain, plotVariable)
     return x, y
@@ -623,19 +623,16 @@ def baggingXGBC(X_test, X_train, y_test, y_train):
 def main():
     database = pd.read_csv('./weatherAUS.csv')
 
-
-
-
-    database = fixMissingValues(database)
-    database = cleanAndEnchanceData(database)
+    # database = fixMissingValues(database)
+    # database = cleanAndEnchanceData(database)
     # database = removeOutliers(database)
-    y = database[['RainTomorrow']]
-    X = database.drop(columns=('RainTomorrow'))
+    # y = database[['RainTomorrow']]
+    # X = database.drop(columns=('RainTomorrow'))
     # liersSkewindex = NormalitzeData(X)
     # X = transformutilsColumns(X, liersSkewindex)
-    X = standarise(X)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    X_train, y_train = balanceData(X_train, y_train)
+    # X = standarise(X)
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    # X_train, y_train = balanceData(X_train, y_train)
 
     #
     #   MARTI
@@ -651,13 +648,13 @@ def main():
 
     # logisticRegression(X_test, X_train, y_test, y_train)
     # svc(X_test, X_train, y_test, y_train, False, ["poly"])
-    xgbc(X_test, X_train, y_test, y_train)
-    baggingXGBC(X_test, X_train, y_test, y_train)
-    rfc(X_test, X_train, y_test, y_train)
-    baggingRandomForest(X_test, X_train, y_test, y_train)
-    # svcLinear(X_test, X_train, y_test, y_train)
-    decicionTree(X_test, X_train, y_test, y_train)
-    baggingDecicionTree(X_test, X_train, y_test, y_train)
+    # xgbc(X_test, X_train, y_test, y_train)
+    # baggingXGBC(X_test, X_train, y_test, y_train)
+    # rfc(X_test, X_train, y_test, y_train)
+    # baggingRandomForest(X_test, X_train, y_test, y_train)
+    # # svcLinear(X_test, X_train, y_test, y_train)
+    # decicionTree(X_test, X_train, y_test, y_train)
+    # baggingDecicionTree(X_test, X_train, y_test, y_train)
 
 
     # plotCurves(X_test, X_train, y_test, y_train, [ 'svc'])
@@ -678,7 +675,24 @@ def main():
     #
 
     # analyseData(database)
+    print(database['RainTomorrow'].value_counts())
+    eje_x = ['No', 'Yes']
 
+    ## Declaramos valores para el eje y
+    eje_y = [110316, 31877]
+
+    ## Creamos Gráfica
+    plt.bar(eje_x, eje_y)
+
+    ## Legenda en el eje y
+    plt.ylabel('Cantidad')
+
+    ## Legenda en el eje x
+    plt.xlabel('Valores')
+
+
+    ## Mostramos Gráfica
+    plt.show()
     # X, y = ModifyDatabase(database)
     # X = fixMissingValuesMode(X)
     #
