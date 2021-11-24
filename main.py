@@ -20,6 +20,7 @@ from sklearn.model_selection import train_test_split, cross_val_score, Randomize
 from sklearn import svm
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
+from skopt import BayesSearchCV
 from xgboost import XGBClassifier
 from sklearn.feature_selection import SelectKBest, chi2, f_classif
 from sklearn.model_selection import KFold
@@ -625,52 +626,37 @@ def baggingXGBC(X_test, X_train, y_test, y_train):
 def main():
     database = pd.read_csv('./weatherAUS.csv')
 
-    # database = fixMissingValues(database)
-    # database = cleanAndEnchanceData(database)
+    analyseData(database)
 
-    # analyseData(database)
-
+    database = fixMissingValues(database)
+    database = cleanAndEnchanceData(database)
     # database = removeOutliers(database)
-    # y = database[['RainTomorrow']]
-    # X = database.drop(columns=('RainTomorrow'))
-    # liersSkewindex = NormalitzeData(X)
-    # X = transformutilsColumns(X, liersSkewindex)
-    # X = standarise(X)
-    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    # X_train, y_train = balanceData(X_train, y_train)
+    y = database[['RainTomorrow']]
+    X = database.drop(columns=('RainTomorrow'))
+    X = standarise(X)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, y_train = balanceData(X_train, y_train)
 
-    #
-    #   MARTI
-    #
-    # database = fixMissingValues(database)
-    # database = cleanAndEnchanceData(database)
-    # # database = removeOutliers(database)
-    # y = database[['RainTomorrow']]
-    # X = database.drop(columns=('RainTomorrow'))
-    # X = standarise(X)
-    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    # X_train, y_train = balanceData(X_train, y_train)
+    logisticRegression(X_test, X_train, y_test, y_train)
+    svc(X_test, X_train, y_test, y_train, False, ["poly"])
+    xgbc(X_test, X_train, y_test, y_train)
+    baggingXGBC(X_test, X_train, y_test, y_train)
+    rfc(X_test, X_train, y_test, y_train)
+    baggingRandomForest(X_test, X_train, y_test, y_train)
+    svcLinear(X_test, X_train, y_test, y_train)
 
-    # logisticRegression(X_test, X_train, y_test, y_train)
-    # svc(X_test, X_train, y_test, y_train, False, ["poly"])
-    # xgbc(X_test, X_train, y_test, y_train)
-    # baggingXGBC(X_test, X_train, y_test, y_train)
-    # rfc(X_test, X_train, y_test, y_train)
-    # baggingRandomForest(X_test, X_train, y_test, y_train)
-    # # svcLinear(X_test, X_train, y_test, y_train)
-
-    # decicionTree(X_test, X_train, y_test, y_train)
-    # baggingDecicionTree(X_test, X_train, y_test, y_train)
+    decicionTree(X_test, X_train, y_test, y_train)
+    baggingDecicionTree(X_test, X_train, y_test, y_train)
 
 
-    # plotCurves(X_test, X_train, y_test, y_train, [ 'svc'])
-    # # Cs and gammas MUST BE same length
-    # compareRbfGamma(X_train, y_train,Cs=[0.1,1,10,1000], gammas=[0.1,1,10,100])
-    # comparePolyDegree(X_train, y_train,degrees=[2,3,4,10])
-    # compareDifferentkernels(X_train, y_train, gamma=50, C=50)
-    #
-    # RandomSearchRFC(X_train, y_train)
-    # BayesianOptimizationRFC(X_train, y_train)
+    plotCurves(X_test, X_train, y_test, y_train, [ 'svc'])
+    # Cs and gammas MUST BE same length
+    compareRbfGamma(X_train, y_train,Cs=[0.1,1,10,1000], gammas=[0.1,1,10,100])
+    comparePolyDegree(X_train, y_train,degrees=[2,3,4,10])
+    compareDifferentkernels(X_train, y_train, gamma=50, C=50)
+
+    RandomSearchRFC(X_train, y_train)
+    BayesianOptimizationRFC(X_train, y_train)
 
 
     #
@@ -678,24 +664,18 @@ def main():
     #
 
     # analyseData(database)
-    print(database['RainTomorrow'].value_counts())
-    eje_x = ['No', 'Yes']
 
     ## Declaramos valores para el eje y
-    eje_y = [110316, 31877]
 
     ## Creamos Gráfica
-    plt.bar(eje_x, eje_y)
 
     ## Legenda en el eje y
-    plt.ylabel('Cantidad')
 
     ## Legenda en el eje x
-    plt.xlabel('Valores')
 
 
     ## Mostramos Gráfica
-    plt.show()
+    # plt.show()
     # X, y = ModifyDatabase(database)
     # X = fixMissingValuesMode(X)
     #
